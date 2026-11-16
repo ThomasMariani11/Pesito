@@ -81,7 +81,7 @@ Al cargar múltiples importes para un mismo servicio o concepto en una misma fra
 
 ## Corrección en rama: normalización de prefijo móvil argentino en despacho de renovación BE-19 — 03/11/2026
 
-Durante la prueba de aceptación de BE-19 en producción (caso real de Matias Mariani), tras aplicar la migración 044 el trabajador tomó la notificación pero la entrega hacia Meta Cloud API falló en 5 intentos consecutivos, quedando en `state = 'failed'` («No se pudo enviar · revisar»).
+Durante la prueba de aceptación de BE-19 en producción (caso real de un cliente; identidad omitida), tras aplicar la migración 044 el trabajador tomó la notificación pero la entrega hacia Meta Cloud API falló en 5 intentos consecutivos, quedando en `state = 'failed'` («No se pudo enviar · revisar»).
 
 **Causa raíz:** En `supabase/functions/whatsapp-webhook/index.ts`, `deliverRenewalNotices` invocaba `sendWhatsAppText` con `{ exactRecipient: true }`. En `meta-client.ts`, esta opción desactivaba la resolución de la variante argentina (`to.replace(/^549/, "54")`). Meta Cloud API rechaza llamadas `POST /messages` a destinos argentinos con prefijo `549...` retornando HTTP 400 Bad Request, exigiendo el formato internacional sin el `9` (`54...`). Al impedirse el uso de la variante, cada intento arrojó HTTP 400 hasta agotar los 5 reintentos permitidos.
 
@@ -91,7 +91,7 @@ Durante la prueba de aceptación de BE-19 en producción (caso real de Matias Ma
 3. En `tests/renewal-delivery.test.ts`, verificar que `sendWhatsAppText` intente `54...` si `549...` recibe HTTP 400.
 4. 1.180 pruebas unitarias aprobadas (59 archivos), lint, SQL (12/12), guardas de release (14/14) y build aprobados.
 
-*Estado:* Publicado y verificado en producción el 03/11/2026. PR #77 integrada en `main` (`3bc7b40d0ee2bb19e79ab8af3eb86b4904c977b1`), webhook v68 ACTIVE desplegado, PWA publicada en GitHub Pages. Tras reiniciar el aviso `88510344-5e84-4765-ac26-342ca4c7ead2` en la base de datos, el despachador lo tomó y entregó con éxito en 1 intento (`notice_state: 'sent'`), visualizándose en el panel como «Código enviado».
+*Estado:* Publicado y verificado en producción el 03/11/2026. PR #77 integrada en `main` (`3bc7b40d0ee2bb19e79ab8af3eb86b4904c977b1`), webhook v68 ACTIVE desplegado, PWA publicada en GitHub Pages. Tras reiniciar el aviso afectado (identificador omitido) en la base de datos, el despachador lo tomó y entregó con éxito en 1 intento (`notice_state: 'sent'`), visualizándose en el panel como «Código enviado».
 
 ## Mantenimiento de GitHub Actions — 02/11/2026, PR #9
 
