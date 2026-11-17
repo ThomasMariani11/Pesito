@@ -7,6 +7,7 @@ import { lazyWithRetry, ScreenErrorBoundary, ScreenFallback } from './lazyWithRe
 import type { UserProfile } from './Settings';
 import { supabase } from './supabase';
 import { hasActiveSubscription } from './subscription';
+import { readAdminAal, type AdminAal } from './adminMfa';
 
 const Dashboard = lazyWithRetry(
   () => import('./Dashboard').then((m) => ({ default: m.Dashboard })),
@@ -21,6 +22,11 @@ const Settings = lazyWithRetry(
 const AdminPanel = lazyWithRetry(
   () => import('./AdminPanel').then((m) => ({ default: m.AdminPanel })),
   { chunkKey: 'admin' },
+);
+
+const AdminMfaGate = lazyWithRetry(
+  () => import('./AdminMfaGate').then((m) => ({ default: m.AdminMfaGate })),
+  { chunkKey: 'admin-mfa' },
 );
 
 const Paywall = lazyWithRetry(
@@ -131,6 +137,14 @@ function AuthenticatedApp({ session }: { session: Session }) {
   const [showSignOutConfirm, setShowSignOutConfirm] = useState(false);
   const requestId = useRef(0);
   const isAdmin = profile?.role === 'admin';
+  // SEC-03: el panel exige una sesión AAL2. Se recalcula al cambiar el token (p. ej., tras verificar el código).
+  const [adminAal, setAdminAal] = useState<AdminAal>(null);
+  useEffect(() => {
+    if (!isAdmin) return;
+    let active = true;
+    void readAdminAal(supabase.auth.mfa).then((level) => { if (active) setAdminAal(level); });
+    return () => { active = false; };
+  }, [isAdmin, session.access_token]);
   const nameDraft = useProfileDraft(session.user.id, profile);
   useUpdateBlocker(nameDraft.state.dirty || nameDraft.state.saving, 'Guardá o descartá tus cambios en Ajustes para actualizar.');
   useUpdateBlocker(showSignOutConfirm);
@@ -264,6 +278,21 @@ function AuthenticatedApp({ session }: { session: Session }) {
             subscriptionUntil={profile.subscription_until}
             onSuccess={() => void loadProfile()}
             onSignOut={handleRequestSignOut}
+          />
+        </Suspense>
+        {renderSignOutModal()}
+      </>
+    );
+  }
+
+  if (view === 'admin' && isAdmin && adminAal !== 'aal2') {
+    return (
+      <>
+        <Suspense fallback={<ScreenFallback label="Abriendo verificación…" />}>
+          <AdminMfaGate
+            mfa={supabase.auth.mfa}
+            onVerified={() => void readAdminAal(supabase.auth.mfa).then(setAdminAal)}
+            onBack={() => navigateTo('dashboard')}
           />
         </Suspense>
         {renderSignOutModal()}

@@ -10,6 +10,34 @@
 >
 > Sin contraseñas, tokens, claves, códigos utilizables, teléfonos de clientes, movimientos reales ni comprobantes. Todos los ejemplos financieros son ficticios.
 
+## SEC-03: MFA obligatorio para el administrador — 16/11/2026 (en rama)
+
+**Estado:** en rama `feat/admin-mfa`, **sin integrar ni publicar**. Es la primera corrección de código del plan de remediación de la auditoría de pre-lanzamiento (Fase 1.1).
+
+**Decisiones del propietario (16/11/2026):**
+- El MFA es obligatorio **solo para el administrador**. Ofrecerlo a los clientes queda para más adelante.
+- Si se pierde el dispositivo, la recuperación es **manual desde el panel de Supabase** (eliminar el factor y volver a inscribirlo).
+
+**Cambios:**
+- **Migración 052 (`052_admin_requires_mfa.sql`):**
+  - `is_admin()` exige `role='admin'` y una sesión `aal2`, leída de `request.jwt.claim.aal` o del JSON `request.jwt.claims`. Nunca devuelve NULL.
+  - `admin_renew_subscription()`, que no usaba `is_admin()`, exige lo mismo.
+  - Se conservan dueños y permisos.
+  - Guarda contra el bloqueo: aborta si un admin no tiene un TOTP verificado.
+- **PWA:**
+  - `src/adminMfa.ts` y `src/AdminMfaGate.tsx`: antes del panel, inscripción de TOTP (QR y clave manual) o pedido del código.
+  - `src/App.tsx` muestra el panel solo con una sesión `aal2`.
+  - Ajustes y la experiencia de los clientes no cambian.
+- **Configuración local:** `ops/local/config.toml` habilita TOTP, igual que `supabase/config.toml`.
+- **Contrato:** mínimo 052, rollback 0a29702 (mínimo 051). Ver `docs/operaciones/DEPLOY_Y_ROLLBACK.md`.
+- **Pruebas:**
+  - `tests/admin-mfa-sql.test.ts`: esquema 001–052 en PGlite. Cubre la guarda, `is_admin` con aal1 y aal2, las RPC de administración, las políticas, el trigger de perfiles, la renovación, que los clientes no cambian y los permisos.
+  - `tests/admin-mfa-ui.test.ts`: interfaz con `auth.mfa` simulado.
+
+**No verificado:**
+- TOTP habilitado en el Auth de producción.
+- El flujo real en un navegador contra Supabase local o de producción.
+
 ## Configuración del agente y barrera de Supabase — 06/11/2026 (en rama)
 
 **Estado:** en rama `chore/claude-config`, **sin integrar en `main`**. Es un cambio interno de herramientas: no altera la PWA, el SQL, el webhook ni producción, y no cambia credenciales ni el vínculo de Supabase.

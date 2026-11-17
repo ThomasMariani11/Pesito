@@ -18,6 +18,10 @@ site_url = "http://127.0.0.1:5173/chatbot-gastos/"
 additional_redirect_urls = ["http://127.0.0.1:5173/chatbot-gastos/**"]
 [auth.email]
 enable_confirmations = false
+# SEC-03 (052): el administrador necesita TOTP para operar; igual que supabase/config.toml.
+[auth.mfa.totp]
+enroll_enabled = true
+verify_enabled = true
 [functions.whatsapp-webhook]
 verify_jwt = false
 [analytics]

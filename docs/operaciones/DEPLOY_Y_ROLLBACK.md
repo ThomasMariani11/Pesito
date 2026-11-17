@@ -28,6 +28,33 @@ PWA **800e82101a1d4c5269ae32179e7169ed6bd005c3**, SQL **001–043**, webhook **v
 
 PWA 7dd418e, SQL 001–042, webhook v66 ACTIVE. PR #73 corrigió importes múltiples localmente. [Registro histórico](../planes/VALIDACION_BE_22_IMPORTES_MULTIPLES.md).
 
+## Contrato candidato 052 (SEC-03, MFA del administrador) — 16/11/2026
+
+Rama `feat/admin-mfa`: mínimo **052**, rollback fijado en **0a297029cbccba136495a3ad0959032924155806** (`main` con la PWA y el webhook v75 publicados; mínimo **051**).
+
+**Qué cambia la 052:**
+- Redefine `is_admin()` y `admin_renew_subscription()` para exigir una sesión **AAL2** (TOTP de Supabase Auth), con los mismos dueños y permisos.
+- Todas las políticas y RPC que usan `is_admin()` heredan el requisito. Los clientes no cambian.
+
+**Guarda:** la migración **aborta** (`SEC03_ADMIN_SIN_TOTP`) si algún administrador no tiene un factor TOTP verificado en `auth.mfa_factors`.
+
+**Orden de publicación** (cada paso con autorización del propietario):
+1. PWA, que es compatible con el SQL anterior: el paso de verificación solo agrega la inscripción o el código antes del panel.
+2. El propietario inscribe y verifica su TOTP en producción desde Administración.
+3. `db push --linked --dry-run`, que debe proponer solo la 052.
+4. `db push --linked`.
+5. Verificar:
+   - `is_admin()` con `aal2` y `search_path=pg_catalog, public`;
+   - el dueño de `admin_renew_subscription` sigue siendo `pesito_subscription_writer`;
+   - el panel abre después de ingresar el código.
+
+**Webhook:** sin cambios. Las rutas del bot no usan `is_admin()`.
+
+**Rollback:**
+- Conservar la 052. La PWA anterior (0a29702) funciona con la 052, pero sus operaciones de administración se rechazan sin AAL2 (falla cerrado).
+- **Recuperación si el administrador pierde el factor** (decisión del propietario, 16/11/2026): eliminarlo desde el panel de Supabase (Authentication → Users → el usuario → MFA) y volver a inscribirlo desde la app.
+- **Si el panel queda inaccesible por otra causa:** una migración nueva que restaure la definición anterior de `is_admin()`. Nunca hacer un down.
+
 ## Contrato candidato 051 (NOTIF-02, resumen de fin de mes) — 10/11/2026
 
 Rama `feat/notif-02-resumen-mensual`: mínimo **051**, rollback fijado en **26673fdc16a3ef02e5df384533e934c798acee14** (main publicado, webhook v74; mínimo **050**). 051 es expansiva: agrega `app_settings.monthly_summary_enabled` (default true), admite `monthly_summary` en `client_notifications.kind` y redefine `enqueue_client_notifications` y `claim_client_notifications` (esta última devuelve además `period_key`; mismos permisos que 046). Orden: **webhook → SQL 051 → PWA**. El webhook nuevo funciona con el SQL anterior (nunca recibe `monthly_summary`) y, en el orden previsto, ningún webhook viejo recibe el tipo nuevo; la PWA va al final porque lee la columna nueva. Rollback: conservar 051; volver PWA y webhook a 26673fd / v74. Antes de revertir el webhook a v74, con autorización del propietario, marcar como `skipped` los avisos `pending` con `kind = 'monthly_summary'` (v74 los enviaría con el texto de vencimiento). Apagar el cron `pesito-client-push` también pausa los avisos de vencimiento y registro. Publicado el 10/11/2026 (ver arriba).
