@@ -161,7 +161,7 @@ export function Paywall({
               type="text"
               required
               className="invite-code-input"
-              placeholder="PESO-XXXX"
+              placeholder="Pegá el código que te enviamos"
               value={code}
               onChange={(e) => setCode(e.target.value.toUpperCase().replace(/\s+/g, ''))}
               autoCapitalize="characters"

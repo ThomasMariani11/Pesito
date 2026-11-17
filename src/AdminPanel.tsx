@@ -34,6 +34,7 @@ type InvitationCode = {
   created_by: string | null;
   notes: string | null;
   created_at: string;
+  expires_at?: string | null;
 };
 
 type Props = {
@@ -42,14 +43,8 @@ type Props = {
   onSignOut: () => void;
 };
 
-function generateRandomCode(): string {
-  const chars = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
-  let rand = '';
-  for (let i = 0; i < 4; i++) {
-    rand += chars.charAt(Math.floor(Math.random() * chars.length));
-  }
-  const yearSuffix = new Date().getFullYear();
-  return `PESO-${rand}-${yearSuffix}`;
+function isCodeExpired(code: { is_used: boolean; expires_at?: string | null }, nowMs: number): boolean {
+  return !code.is_used && !!code.expires_at && new Date(code.expires_at).getTime() <= nowMs;
 }
 
 function formatDate(dateStr: string | null): string {
@@ -209,7 +204,7 @@ export function AdminPanel({ userId, onBack, onSignOut }: Props) {
   const [clientSearch, setClientSearch] = useState('');
   const [clientPage, setClientPage] = useState(1);
   const [showCodeForm, setShowCodeForm] = useState(false);
-  const [codeFilter, setCodeFilter] = useState<'all' | 'available' | 'used'>('all');
+  const [codeFilter, setCodeFilter] = useState<'all' | 'available' | 'expired' | 'used'>('all');
   const [codePage, setCodePage] = useState(1);
 
   // Formulario Generador
@@ -217,6 +212,7 @@ export function AdminPanel({ userId, onBack, onSignOut }: Props) {
   const [clientNote, setClientNote] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedCode, setGeneratedCode] = useState<string | null>(null);
+  const [generatedExpiresAt, setGeneratedExpiresAt] = useState<string | null>(null);
   const [copyFeedback, setCopyFeedback] = useState<string | null>(null);
 
   // Configuración de WhatsApp Bot
@@ -343,9 +339,10 @@ export function AdminPanel({ userId, onBack, onSignOut }: Props) {
 
   const { activeClientsCount, expiringSoonCount } = clientSubscriptionMetrics(clientsOnly, now.getTime());
 
-  const availableCodesCount = useMemo(() => {
-    return codes.filter((c) => !c.is_used).length;
-  }, [codes]);
+  const nowMs = now.getTime();
+  const availableCodesCount = codes.filter((c) => !c.is_used && !isCodeExpired(c, nowMs)).length;
+  const expiredCodesCount = codes.filter((c) => isCodeExpired(c, nowMs)).length;
+  const usedCodesCount = codes.filter((c) => c.is_used).length;
 
   // Generar Código
   async function handleCreateCode(e: FormEvent<HTMLFormElement>) {
@@ -353,14 +350,12 @@ export function AdminPanel({ userId, onBack, onSignOut }: Props) {
     setIsGenerating(true);
     setCopyFeedback(null);
 
-    const newCode = generateRandomCode();
     const finalDays = durationDays === 'lifetime' ? null : Number(durationDays);
 
-    const { error } = await supabase.from('invitation_codes').insert({
-      code: newCode,
-      duration_days: finalDays,
-      notes: clientNote.trim() || null,
-      created_by: userId,
+    // SEC-02: el código lo genera el servidor (aleatorio criptográfico, vence a los 7 días si no se usa).
+    const { data, error } = await supabase.rpc('admin_create_invitation_code', {
+      p_duration_days: finalDays,
+      p_notes: clientNote.trim() || null,
     });
 
     setIsGenerating(false);
@@ -369,8 +364,17 @@ export function AdminPanel({ userId, onBack, onSignOut }: Props) {
       window.alert('Error al generar código: ' + error.message);
       return;
     }
+    const newCode = (data as { code?: unknown } | null)?.code;
+    if (typeof newCode !== 'string') {
+      // El servidor respondió sin error: el código pudo haberse creado aunque no llegó en la respuesta.
+      window.alert('No se pudo mostrar el código nuevo. Revisá la lista de invitaciones antes de crear otro.');
+      void loadData();
+      return;
+    }
 
     setGeneratedCode(newCode);
+    const expiresAt = (data as { expires_at?: unknown }).expires_at;
+    setGeneratedExpiresAt(typeof expiresAt === 'string' ? expiresAt : null);
     setClientNote('');
     void loadData();
   }
@@ -382,7 +386,7 @@ export function AdminPanel({ userId, onBack, onSignOut }: Props) {
   }
 
   // Copiar mensaje listo para WhatsApp
-  function copyWhatsAppMessage(code: string) {
+  function copyWhatsAppMessage(code: string, expiresAt: string | null | undefined) {
     const inviteUrl = `${window.location.origin}${window.location.pathname}?invitacion=${code}`;
     const text = `¡Hola! Bienvenido/a a *Pesito* 💰✨
 
@@ -391,7 +395,8 @@ Tu cuenta ya está habilitada. Seguí estos 3 pasos rápidos para empezar:
 1️⃣ *Creá tu cuenta:* Entrá a este enlace exclusivo:
 ${inviteUrl}
 (Ingresá tu email y la contraseña que prefieras).
-
+${expiresAt ? `⏳ El enlace vence el ${formatDate(expiresAt)}.
+` : ''}
 2️⃣ *Instalá la app en tu celu (Opcional pero recomendado):*
 Tocá el botón *"📲 Instalar app"* arriba a la derecha para tenerla en la pantalla de inicio de tu celular.
 
@@ -604,7 +609,8 @@ Dentro de la app, andá a *Ajustes* y tocá el botón *"🟢 Conectar mi WhatsAp
   // Filtros de códigos
   const filteredCodes = useMemo(() => {
     return codes.filter((c) => {
-      if (codeFilter === 'available') return !c.is_used;
+      if (codeFilter === 'available') return !c.is_used && !isCodeExpired(c, Date.now());
+      if (codeFilter === 'expired') return isCodeExpired(c, Date.now());
       if (codeFilter === 'used') return c.is_used;
       return true;
     });
@@ -941,7 +947,7 @@ Dentro de la app, andá a *Ajustes* y tocá el botón *"🟢 Conectar mi WhatsAp
                       <option value={90}>3 meses · 90 días</option>
                       <option value={180}>6 meses · 180 días</option>
                       <option value={365}>1 año · 365 días</option>
-                      <option value="lifetime">Sin vencimiento</option>
+                      <option value="lifetime">Membresía vitalicia</option>
                     </select>
                   </label>
                   <label htmlFor="admin-invite-note">
@@ -982,7 +988,7 @@ Dentro de la app, andá a *Ajustes* y tocá el botón *"🟢 Conectar mi WhatsAp
                 <button
                   type="button"
                   className="action-btn small"
-                  onClick={() => copyWhatsAppMessage(generatedCode)}
+                  onClick={() => copyWhatsAppMessage(generatedCode, generatedExpiresAt)}
                 >
                   Copiar mensaje
                 </button>
@@ -1006,7 +1012,8 @@ Dentro de la app, andá a *Ajustes* y tocá el botón *"🟢 Conectar mi WhatsAp
               [
                 ['all', 'Todas', codes.length],
                 ['available', 'Disponibles', availableCodesCount],
-                ['used', 'Usadas', codes.length - availableCodesCount],
+                ['expired', 'Vencidas', expiredCodesCount],
+                ['used', 'Usadas', usedCodesCount],
               ] as const
             ).map(([filter, label, count]) => (
               <button
@@ -1041,26 +1048,42 @@ Dentro de la app, andá a *Ajustes* y tocá el botón *"🟢 Conectar mi WhatsAp
                   </tr>
                 </thead>
                 <tbody>
-                  {paginatedCodes.map((item) => (
-                    <tr key={item.id} className={item.is_used ? 'is-used-code' : ''}>
+                  {paginatedCodes.map((item) => {
+                    const isExpired = isCodeExpired(item, nowMs);
+                    return (
+                    <tr key={item.id} className={item.is_used || isExpired ? 'is-used-code' : ''}>
                       <td data-label="Código" className="admin-client-cell">
                         <strong className="code-token-sm">{item.code}</strong>
                         <span className="cell-subtext">Creado {formatShortDate(item.created_at, now.getFullYear())}</span>
                       </td>
                       <td data-label="Duración" className="admin-code-duration-cell">
-                        {item.duration_days ? item.duration_days + ' días' : 'Sin vencimiento'}
+                        {item.duration_days ? item.duration_days + ' días' : 'Membresía vitalicia'}
                       </td>
                       <td data-label="Nota" className="admin-code-note-cell">{item.notes || '—'}</td>
                       <td data-label="Estado" className="admin-code-status-cell">
-                        <span className={'status-pill ' + (item.is_used ? 'gray' : 'green')}>
+                        <span className={'status-pill ' + (item.is_used || isExpired ? 'gray' : 'green')}>
                           {item.is_used
                             ? `Usada el ${formatShortDate(item.used_at || item.created_at, now.getFullYear())}`
-                            : 'Disponible'}
+                            : isExpired
+                              ? 'Vencido'
+                              : item.expires_at
+                                ? `Vence el ${formatShortDate(item.expires_at, now.getFullYear())}`
+                                : 'Disponible'}
                         </span>
                       </td>
                       <td data-label="Acciones" className="admin-row-actions">
                         {item.is_used ? (
                           <span className="admin-muted admin-used-dash">—</span>
+                        ) : isExpired ? (
+                          <div className="action-buttons-group">
+                            <button
+                              type="button"
+                              className="action-btn small danger"
+                              onClick={() => void handleDeleteCode(item)}
+                            >
+                              Anular
+                            </button>
+                          </div>
                         ) : (
                           <div className="action-buttons-group">
                             <button
@@ -1075,7 +1098,7 @@ Dentro de la app, andá a *Ajustes* y tocá el botón *"🟢 Conectar mi WhatsAp
                               type="button"
                               className="action-btn small"
                               aria-label={'Copiar mensaje de ' + item.code}
-                              onClick={() => copyWhatsAppMessage(item.code)}
+                              onClick={() => copyWhatsAppMessage(item.code, item.expires_at)}
                             >
                               Mensaje
                             </button>
@@ -1098,7 +1121,8 @@ Dentro de la app, andá a *Ajustes* y tocá el botón *"🟢 Conectar mi WhatsAp
                         )}
                       </td>
                     </tr>
-                  ))}
+                    );
+                  })}
                 </tbody>
               </table>
               {filteredCodes.length > ADMIN_PAGE_SIZE && (

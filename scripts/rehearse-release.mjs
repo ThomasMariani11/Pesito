@@ -10,6 +10,7 @@ import { run, stop, localUrl, localDockerEndpoint, localEnvironment, stampDistri
 import { prepareLocal } from './prepare-local.mjs';
 import { smokeBusinessContract } from './release-sql-contract.mjs';
 import { smokeRenewalContract } from './release-renewal-contract.mjs';
+import { smokeInvitationContract } from './release-invitation-contract.mjs';
 
 const root = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const env = localEnvironment();
@@ -377,6 +378,7 @@ try {
   });
   await step('retencion_aislada_con_finanzas_preservadas', async () => { await smokeRetentionSql(id); });
   await step('pago_codigo_y_canje_043_sin_envio_externo', () => smokeRenewalContract(sql, id));
+  await step('invitaciones_053_generadas_en_servidor', () => smokeInvitationContract(sql));
   await step('candidato_webhook_y_pwa', async () => {
     await startWorker(api);
     await smokeWorker(api);

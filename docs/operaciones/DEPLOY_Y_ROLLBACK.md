@@ -32,6 +32,27 @@ PWA **800e82101a1d4c5269ae32179e7169ed6bd005c3**, SQL **001–043**, webhook **v
 
 PWA 7dd418e, SQL 001–042, webhook v66 ACTIVE. PR #73 corrigió importes múltiples localmente. [Registro histórico](../planes/VALIDACION_BE_22_IMPORTES_MULTIPLES.md).
 
+## Contrato candidato 053 (SEC-02, códigos de invitación en el servidor) — 17/11/2026
+
+Rama `feat/sec-02-codigos-servidor`: mínimo **053**, rollback fijado en **d350e08412a10aa71a552adc73381654b05b0c3e** (`main` con la PWA publicada de SEC-03; mínimo **052**).
+
+**Qué cambia la 053:**
+- Nueva RPC `admin_create_invitation_code(p_duration_days, p_notes)`: SECURITY DEFINER, exige `is_admin()` (admin con AAL2). Genera `PESO-XXXX-XXXX-XXXX` (12 caracteres aleatorios de un alfabeto de 32, ~10^18 combinaciones) con `expires_at` a 7 días.
+- `invitation_codes`: la política `for all` del admin se reemplaza por `select` y `delete`; se revocan `insert`/`update` a `anon` y `authenticated`. El trigger 043 sigue protegiendo los códigos de renovación.
+- Los códigos de invitación libres sin usar y sin vencimiento reciben 7 días desde la aplicación (decisión del propietario, 17/11/2026). Usados, con vencimiento previo y de renovación no cambian.
+
+**Orden de publicación** (cada paso con autorización del propietario):
+1. `db push --linked --dry-run`, que debe proponer solo la 053.
+2. `db push --linked`.
+3. Merge y publicación de la PWA. Entre los pasos 2 y 3, la PWA publicada no puede crear invitaciones (falla cerrado: el insert directo queda rechazado); el resto del panel funciona.
+4. Verificar: RPC SECURITY DEFINER con `search_path=pg_catalog, public`, EXECUTE para authenticated y no para anon, sin insert/update para clientes, 0 códigos libres sin usar y sin vencimiento; crear una invitación desde el panel con el código de dos pasos.
+
+**Ensayo de release:** el paso `invitaciones_053_generadas_en_servidor` (`scripts/release-invitation-contract.mjs`) comprueba en Supabase local los permisos reales (sin EXECUTE para anon; sin insert/update de tabla ni por columna para clientes), el rechazo con aal1, el formato y el vencimiento con aal2, y el rechazo del insert directo como `authenticated`. Es SQL sobre el stack, no una llamada por PostgREST con una sesión TOTP real.
+
+**Webhook:** sin cambios.
+
+**Rollback:** conservar 053. La PWA anterior (d350e08) funciona salvo "Crear código", que queda rechazado hasta republicar la versión con la RPC. Nunca hacer un down.
+
 ## Contrato candidato 052 (SEC-03, MFA del administrador) — 16/11/2026
 
 Rama `feat/admin-mfa`: mínimo **052**, rollback fijado en **0a297029cbccba136495a3ad0959032924155806** (`main` con la PWA y el webhook v75 publicados; mínimo **051**).
