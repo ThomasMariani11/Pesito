@@ -41,7 +41,7 @@ PWA 7dd418e, SQL 001–042, webhook v66 ACTIVE. PR #73 corrigió importes múlti
 Rama `feat/sec-01-vinculacion-robusta`: mínimo **054**, rollback fijado en **7d07b1791eb17d8c3b8d089f30ccdd32b6282d6f** (`main` con SQL 053 y la PWA de #106; mínimo **053**).
 
 **Qué cambia:**
-- Código de vinculación `XXXX-XXXX-XXXX` de 12 caracteres (alfabeto de 32). Se guarda el hash del código normalizado. La RPC acepta también el formato de 6 dígitos mientras dure la transición.
+- Código de vinculación `XXXX-XXXX-XXXX` de 12 caracteres (alfabeto de 32). Se guarda el hash del código normalizado. La RPC solo genera el formato nuevo y la 054 anula los códigos pendientes; durante la transición el webhook y la PWA aceptan también el formato de 6 dígitos (los emitidos por el SQL anterior).
 - Avisos `whatsapp_linked` / `whatsapp_unlinked` por Web Push, enviados por el cron horario (demora de hasta ~1 h). El texto no incluye el número ni datos financieros.
 - Al generar un código nuevo se anulan los códigos pendientes anteriores del usuario.
 
