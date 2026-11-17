@@ -180,4 +180,23 @@ describe('SEC-02: invitaciones generadas por el servidor en el Panel Admin', () 
       expect(src(f)).toContain('placeholder="Pegá el código que te enviamos"');
     }
   });
+  it('el cartel del código recién creado se puede cerrar', async () => {
+    await openInvitations();
+    await submitNewCode();
+    await vi.waitFor(() => expect(container.querySelector('.generated-code-box')).not.toBeNull());
+    await act(async () => { (container.querySelector('.generated-code-box button[aria-label="Cerrar invitación creada"]') as HTMLButtonElement).click(); });
+    expect(container.querySelector('.generated-code-box')).toBeNull();
+  });
+
+  it('anular el código recién creado también cierra su cartel', async () => {
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    state.codes = [{ id: created.id, code: created.code, duration_days: 30, is_used: false, used_by: null, used_at: null, created_by: 'admin-1',
+      notes: null, created_at: '2026-11-17T00:00:00Z', expires_at: created.expires_at }];
+    await openInvitations();
+    await submitNewCode();
+    await vi.waitFor(() => expect(container.querySelector('.generated-code-box')).not.toBeNull());
+    const annul = Array.from(container.querySelectorAll('.admin-codes-table tbody tr button')).find((b) => b.textContent === 'Anular') as HTMLButtonElement;
+    await act(async () => { annul.click(); });
+    await vi.waitFor(() => expect(container.querySelector('.generated-code-box')).toBeNull());
+  });
 });
