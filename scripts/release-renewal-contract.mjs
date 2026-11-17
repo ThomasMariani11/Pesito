@@ -24,6 +24,16 @@ export async function smokeRenewalContract(sql, id, { transaction = true } = {})
       if (select count(*) from public.subscription_renewal_requests where user_id='${id}')<>1 then raise exception 'RENEWAL_REQUEST_DUPLICATED';end if;
       select id into req from public.subscription_renewal_requests where user_id='${id}';
       perform set_config('request.jwt.claim.sub','43000000-0000-4000-8000-000000000099',true);
+      -- SEC-03 (052): con esquema que exige MFA, el admin con sesión aal1 debe ser rechazado.
+      if exists (select 1 from pg_proc p join pg_namespace s on s.oid=p.pronamespace where s.nspname='public' and p.proname='is_admin' and p.prosrc like '%aal2%') then
+        perform set_config('request.jwt.claim.aal','aal1',true);
+        begin
+          perform public.admin_confirm_renewal_payment(req,30);
+          raise exception 'RENEWAL_PAYMENT_WITHOUT_MFA';
+        exception when insufficient_privilege then null;
+        end;
+      end if;
+      perform set_config('request.jwt.claim.aal','aal2',true);
       r:=public.admin_confirm_renewal_payment(req,30);
       if r->>'replayed' is distinct from 'false' then raise exception 'RENEWAL_PAYMENT_FAILED';end if;
       r:=public.admin_confirm_renewal_payment(req,30);
@@ -36,6 +46,7 @@ export async function smokeRenewalContract(sql, id, { transaction = true } = {})
       if n->>'to' is distinct from 'synthetic-release-renewal' or not public.authorize_subscription_renewal_notice((n->>'id')::uuid,token) then raise exception 'RENEWAL_DISPATCH_NOT_AUTHORIZED';end if;
       perform public.finish_subscription_renewal_notice((n->>'id')::uuid,token,'sent');
       perform set_config('request.jwt.claim.sub','${id}',true);
+      perform set_config('request.jwt.claim.aal','',true);
       r:=public.redeem_invitation_code(code,'${id}');
       if r->>'success' is distinct from 'true' then raise exception 'RENEWAL_REDEMPTION_FAILED';end if;
       r:=public.redeem_invitation_code(code,'${id}');

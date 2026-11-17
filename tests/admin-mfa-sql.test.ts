@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach } from 'vitest';
 import { PGlite } from '@electric-sql/pglite';
 import { readFile as readSqlFile, readdir } from 'node:fs/promises';
+import { smokeRenewalContract } from '../scripts/release-renewal-contract.mjs';
 
 // SEC-03 (Fase 1.1): la migración 052 exige una sesión AAL2 (TOTP) para toda operación de administración.
 // Datos ficticios. El esquema se arma con las migraciones reales 001–051 y la 052 se aplica al final.
@@ -189,5 +190,11 @@ describe('SEC-03: administración con verificación en dos pasos (migración 052
     expect(await privileges()).toEqual(before);
     const config = (await db.query<{ c: string[] }>("select proconfig as c from pg_proc where oid = 'public.is_admin()'::regprocedure")).rows[0].c;
     expect(config).toEqual(['search_path=pg_catalog, public']);
+  });
+  it('el contrato de renovación del ensayo de release pasa con 052 y rechaza al admin con AAL1', async () => {
+    // El setup de este archivo concede tablas a authenticated; se deshace aquí (transacción) para el chequeo de privacidad del contrato.
+    await db.exec('revoke all on public.subscription_renewal_requests, public.subscription_renewal_notices from authenticated');
+    await db.exec("select set_config('request.jwt.claim.sub', '', true), set_config('request.jwt.claims', '', true)");
+    await smokeRenewalContract((sql: string) => db.exec(sql), client, { transaction: false });
   });
 });
