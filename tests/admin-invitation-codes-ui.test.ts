@@ -199,4 +199,19 @@ describe('SEC-02: invitaciones generadas por el servidor en el Panel Admin', () 
     await act(async () => { annul.click(); });
     await vi.waitFor(() => expect(container.querySelector('.generated-code-box')).toBeNull());
   });
+  it('al crear la invitación el formulario se cierra y queda el cartel', async () => {
+    await openInvitations();
+    await submitNewCode();
+    await vi.waitFor(() => expect(container.querySelector('.generated-code-box')).not.toBeNull());
+    expect(container.querySelector('#admin-new-invitation')).toBeNull();
+    expect(Array.from(container.querySelectorAll('button')).some((b) => b.textContent === 'Nueva invitación')).toBe(true);
+  });
+
+  it('si falla la creación el formulario queda abierto', async () => {
+    vi.spyOn(window, 'alert').mockImplementation(() => {});
+    state.rpc = vi.fn(async (...args: unknown[]) => (args[0] === 'admin_create_invitation_code' ? { data: null, error: { message: 'x' } } : { data: [], error: null }));
+    await openInvitations();
+    await submitNewCode();
+    expect(container.querySelector('#admin-new-invitation')).not.toBeNull();
+  });
 });

@@ -373,6 +373,7 @@ export function AdminPanel({ userId, onBack, onSignOut }: Props) {
     }
 
     setGeneratedCode(newCode);
+    setShowCodeForm(false);
     const expiresAt = (data as { expires_at?: unknown }).expires_at;
     setGeneratedExpiresAt(typeof expiresAt === 'string' ? expiresAt : null);
     setClientNote('');
