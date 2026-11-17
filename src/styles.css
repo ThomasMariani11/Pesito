@@ -3049,3 +3049,9 @@ button:active:not(:disabled),
   .client-notice { grid-template-columns: auto 1fr auto; align-items: center; }
   .client-notice-actions { grid-column: auto; justify-content: flex-end; }
 }
+
+/* SEC-03: verificación en dos pasos del administrador */
+.admin-mfa-qr { display: block; width: 200px; height: 200px; margin: 12px auto; background: #fff; border-radius: 12px; padding: 8px; }
+.admin-mfa-secret { font-size: 13px; color: var(--muted); overflow-wrap: anywhere; }
+.admin-mfa-secret code { font-size: 13px; letter-spacing: 0.04em; }
+.admin-mfa-help { margin-top: 16px; font-size: 13px; color: var(--muted); }
