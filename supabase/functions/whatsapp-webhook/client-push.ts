@@ -7,7 +7,7 @@ import { sendWebPush, type PushResult, type PushSubscriptionKeys, type VapidConf
 type Rpc = <T>(name: string, args?: Record<string, unknown>) => Promise<T>;
 export type ClientNotification = {
   id: string;
-  kind: "subscription_7" | "subscription_1" | "registration_noon" | "registration_night" | "monthly_summary";
+  kind: "subscription_7" | "subscription_1" | "registration_noon" | "registration_night" | "monthly_summary" | "whatsapp_linked" | "whatsapp_unlinked";
   days: number | null;
   // 'YYYY-MM' del mes resumido (solo monthly_summary); puede faltar si el SQL es anterior a 051.
   period_key?: string | null;
@@ -69,6 +69,22 @@ export function formatClientPush(
       body: "Hoy no registraste movimientos. Anotá tus gastos e ingresos para tener tu resumen al día.",
       url: "./",
       tag: "pesito-registro",
+    };
+  }
+  if (notification.kind === "whatsapp_linked") {
+    return {
+      title: "Tu WhatsApp quedó vinculado",
+      body: "Pesito ya recibe tus mensajes desde un número nuevo. Si no fuiste vos, volvé a conectar tu número desde Ajustes.",
+      url: "./#settings",
+      tag: "pesito-whatsapp-vinculado",
+    };
+  }
+  if (notification.kind === "whatsapp_unlinked") {
+    return {
+      title: "Tu WhatsApp se desvinculó",
+      body: "Ese número se vinculó a otra cuenta. Si no fuiste vos, volvé a conectarlo desde Ajustes.",
+      url: "./#settings",
+      tag: "pesito-whatsapp-desvinculado",
     };
   }
   // Un tipo que este webhook no conoce nunca debe enviar el texto de vencimiento.
