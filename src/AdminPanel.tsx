@@ -34,6 +34,7 @@ type InvitationCode = {
   created_by: string | null;
   notes: string | null;
   created_at: string;
+  expires_at?: string | null;
 };
 
 type Props = {
@@ -41,16 +42,6 @@ type Props = {
   onBack: () => void;
   onSignOut: () => void;
 };
-
-function generateRandomCode(): string {
-  const chars = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
-  let rand = '';
-  for (let i = 0; i < 4; i++) {
-    rand += chars.charAt(Math.floor(Math.random() * chars.length));
-  }
-  const yearSuffix = new Date().getFullYear();
-  return `PESO-${rand}-${yearSuffix}`;
-}
 
 function formatDate(dateStr: string | null): string {
   if (!dateStr) return 'Sin vencimiento';
@@ -353,20 +344,19 @@ export function AdminPanel({ userId, onBack, onSignOut }: Props) {
     setIsGenerating(true);
     setCopyFeedback(null);
 
-    const newCode = generateRandomCode();
     const finalDays = durationDays === 'lifetime' ? null : Number(durationDays);
 
-    const { error } = await supabase.from('invitation_codes').insert({
-      code: newCode,
-      duration_days: finalDays,
-      notes: clientNote.trim() || null,
-      created_by: userId,
+    // SEC-02: el código lo genera el servidor (aleatorio criptográfico, vence a los 7 días si no se usa).
+    const { data, error } = await supabase.rpc('admin_create_invitation_code', {
+      p_duration_days: finalDays,
+      p_notes: clientNote.trim() || null,
     });
 
     setIsGenerating(false);
 
-    if (error) {
-      window.alert('Error al generar código: ' + error.message);
+    const newCode = (data as { code?: unknown } | null)?.code;
+    if (error || typeof newCode !== 'string') {
+      window.alert('Error al generar código: ' + (error?.message ?? 'respuesta inesperada del servidor.'));
       return;
     }
 
@@ -391,6 +381,7 @@ Tu cuenta ya está habilitada. Seguí estos 3 pasos rápidos para empezar:
 1️⃣ *Creá tu cuenta:* Entrá a este enlace exclusivo:
 ${inviteUrl}
 (Ingresá tu email y la contraseña que prefieras).
+⏳ El enlace vence en 7 días.
 
 2️⃣ *Instalá la app en tu celu (Opcional pero recomendado):*
 Tocá el botón *"📲 Instalar app"* arriba a la derecha para tenerla en la pantalla de inicio de tu celular.
@@ -1041,8 +1032,11 @@ Dentro de la app, andá a *Ajustes* y tocá el botón *"🟢 Conectar mi WhatsAp
                   </tr>
                 </thead>
                 <tbody>
-                  {paginatedCodes.map((item) => (
-                    <tr key={item.id} className={item.is_used ? 'is-used-code' : ''}>
+                  {paginatedCodes.map((item) => {
+                    const isExpired =
+                      !item.is_used && !!item.expires_at && new Date(item.expires_at).getTime() <= now.getTime();
+                    return (
+                    <tr key={item.id} className={item.is_used || isExpired ? 'is-used-code' : ''}>
                       <td data-label="Código" className="admin-client-cell">
                         <strong className="code-token-sm">{item.code}</strong>
                         <span className="cell-subtext">Creado {formatShortDate(item.created_at, now.getFullYear())}</span>
@@ -1052,14 +1046,18 @@ Dentro de la app, andá a *Ajustes* y tocá el botón *"🟢 Conectar mi WhatsAp
                       </td>
                       <td data-label="Nota" className="admin-code-note-cell">{item.notes || '—'}</td>
                       <td data-label="Estado" className="admin-code-status-cell">
-                        <span className={'status-pill ' + (item.is_used ? 'gray' : 'green')}>
+                        <span className={'status-pill ' + (item.is_used || isExpired ? 'gray' : 'green')}>
                           {item.is_used
                             ? `Usada el ${formatShortDate(item.used_at || item.created_at, now.getFullYear())}`
-                            : 'Disponible'}
+                            : isExpired
+                              ? 'Vencido'
+                              : item.expires_at
+                                ? `Vence el ${formatShortDate(item.expires_at, now.getFullYear())}`
+                                : 'Disponible'}
                         </span>
                       </td>
                       <td data-label="Acciones" className="admin-row-actions">
-                        {item.is_used ? (
+                        {item.is_used || isExpired ? (
                           <span className="admin-muted admin-used-dash">—</span>
                         ) : (
                           <div className="action-buttons-group">
@@ -1098,7 +1096,8 @@ Dentro de la app, andá a *Ajustes* y tocá el botón *"🟢 Conectar mi WhatsAp
                         )}
                       </td>
                     </tr>
-                  ))}
+                    );
+                  })}
                 </tbody>
               </table>
               {filteredCodes.length > ADMIN_PAGE_SIZE && (
