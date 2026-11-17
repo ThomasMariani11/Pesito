@@ -18,7 +18,7 @@
 
 **Cambios:**
 - **Migración 053:** RPC `admin_create_invitation_code` (admin con AAL2; `PESO-XXXX-XXXX-XXXX` de 12 caracteres criptográficos; vence a los 7 días). Políticas de `invitation_codes` reducidas a `select`/`delete` del admin y sin `insert`/`update` de tabla para clientes. Vencimiento de 7 días para los libres sin usar existentes.
-- **PWA (`src/AdminPanel.tsx`):** "Crear código" usa la RPC (se eliminó la generación con `Math.random`); la lista muestra "Vence el …" o "Vencido" (sin botones de copiar); el mensaje de WhatsApp avisa que el enlace vence en 7 días.
+- **PWA (`src/AdminPanel.tsx`):** "Crear código" usa la RPC (se eliminó la generación con `Math.random`); la lista muestra "Vence el …" o "Vencido" (los vencidos solo se pueden anular y se cuentan aparte en el filtro "Vencidas"); el mensaje de WhatsApp indica la fecha de vencimiento de ese código.
 - **Contrato:** mínimo 053, rollback d350e08 (mínimo 052).
 - **Pruebas:** `tests/invitation-codes-sql.test.ts` (PGlite 001–053) y `tests/admin-invitation-codes-ui.test.ts`.
 

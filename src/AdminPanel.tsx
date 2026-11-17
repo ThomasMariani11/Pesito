@@ -43,6 +43,10 @@ type Props = {
   onSignOut: () => void;
 };
 
+function isCodeExpired(code: { is_used: boolean; expires_at?: string | null }, nowMs: number): boolean {
+  return !code.is_used && !!code.expires_at && new Date(code.expires_at).getTime() <= nowMs;
+}
+
 function formatDate(dateStr: string | null): string {
   if (!dateStr) return 'Sin vencimiento';
   const date = new Date(dateStr);
@@ -200,7 +204,7 @@ export function AdminPanel({ userId, onBack, onSignOut }: Props) {
   const [clientSearch, setClientSearch] = useState('');
   const [clientPage, setClientPage] = useState(1);
   const [showCodeForm, setShowCodeForm] = useState(false);
-  const [codeFilter, setCodeFilter] = useState<'all' | 'available' | 'used'>('all');
+  const [codeFilter, setCodeFilter] = useState<'all' | 'available' | 'expired' | 'used'>('all');
   const [codePage, setCodePage] = useState(1);
 
   // Formulario Generador
@@ -208,6 +212,7 @@ export function AdminPanel({ userId, onBack, onSignOut }: Props) {
   const [clientNote, setClientNote] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedCode, setGeneratedCode] = useState<string | null>(null);
+  const [generatedExpiresAt, setGeneratedExpiresAt] = useState<string | null>(null);
   const [copyFeedback, setCopyFeedback] = useState<string | null>(null);
 
   // Configuración de WhatsApp Bot
@@ -334,9 +339,10 @@ export function AdminPanel({ userId, onBack, onSignOut }: Props) {
 
   const { activeClientsCount, expiringSoonCount } = clientSubscriptionMetrics(clientsOnly, now.getTime());
 
-  const availableCodesCount = useMemo(() => {
-    return codes.filter((c) => !c.is_used).length;
-  }, [codes]);
+  const nowMs = now.getTime();
+  const availableCodesCount = codes.filter((c) => !c.is_used && !isCodeExpired(c, nowMs)).length;
+  const expiredCodesCount = codes.filter((c) => isCodeExpired(c, nowMs)).length;
+  const usedCodesCount = codes.filter((c) => c.is_used).length;
 
   // Generar Código
   async function handleCreateCode(e: FormEvent<HTMLFormElement>) {
@@ -361,6 +367,8 @@ export function AdminPanel({ userId, onBack, onSignOut }: Props) {
     }
 
     setGeneratedCode(newCode);
+    const expiresAt = (data as { expires_at?: unknown }).expires_at;
+    setGeneratedExpiresAt(typeof expiresAt === 'string' ? expiresAt : null);
     setClientNote('');
     void loadData();
   }
@@ -372,7 +380,7 @@ export function AdminPanel({ userId, onBack, onSignOut }: Props) {
   }
 
   // Copiar mensaje listo para WhatsApp
-  function copyWhatsAppMessage(code: string) {
+  function copyWhatsAppMessage(code: string, expiresAt: string | null | undefined) {
     const inviteUrl = `${window.location.origin}${window.location.pathname}?invitacion=${code}`;
     const text = `¡Hola! Bienvenido/a a *Pesito* 💰✨
 
@@ -381,8 +389,8 @@ Tu cuenta ya está habilitada. Seguí estos 3 pasos rápidos para empezar:
 1️⃣ *Creá tu cuenta:* Entrá a este enlace exclusivo:
 ${inviteUrl}
 (Ingresá tu email y la contraseña que prefieras).
-⏳ El enlace vence en 7 días.
-
+${expiresAt ? `⏳ El enlace vence el ${formatDate(expiresAt)}.
+` : ''}
 2️⃣ *Instalá la app en tu celu (Opcional pero recomendado):*
 Tocá el botón *"📲 Instalar app"* arriba a la derecha para tenerla en la pantalla de inicio de tu celular.
 
@@ -595,7 +603,8 @@ Dentro de la app, andá a *Ajustes* y tocá el botón *"🟢 Conectar mi WhatsAp
   // Filtros de códigos
   const filteredCodes = useMemo(() => {
     return codes.filter((c) => {
-      if (codeFilter === 'available') return !c.is_used;
+      if (codeFilter === 'available') return !c.is_used && !isCodeExpired(c, Date.now());
+      if (codeFilter === 'expired') return isCodeExpired(c, Date.now());
       if (codeFilter === 'used') return c.is_used;
       return true;
     });
@@ -973,7 +982,7 @@ Dentro de la app, andá a *Ajustes* y tocá el botón *"🟢 Conectar mi WhatsAp
                 <button
                   type="button"
                   className="action-btn small"
-                  onClick={() => copyWhatsAppMessage(generatedCode)}
+                  onClick={() => copyWhatsAppMessage(generatedCode, generatedExpiresAt)}
                 >
                   Copiar mensaje
                 </button>
@@ -997,7 +1006,8 @@ Dentro de la app, andá a *Ajustes* y tocá el botón *"🟢 Conectar mi WhatsAp
               [
                 ['all', 'Todas', codes.length],
                 ['available', 'Disponibles', availableCodesCount],
-                ['used', 'Usadas', codes.length - availableCodesCount],
+                ['expired', 'Vencidas', expiredCodesCount],
+                ['used', 'Usadas', usedCodesCount],
               ] as const
             ).map(([filter, label, count]) => (
               <button
@@ -1033,8 +1043,7 @@ Dentro de la app, andá a *Ajustes* y tocá el botón *"🟢 Conectar mi WhatsAp
                 </thead>
                 <tbody>
                   {paginatedCodes.map((item) => {
-                    const isExpired =
-                      !item.is_used && !!item.expires_at && new Date(item.expires_at).getTime() <= now.getTime();
+                    const isExpired = isCodeExpired(item, nowMs);
                     return (
                     <tr key={item.id} className={item.is_used || isExpired ? 'is-used-code' : ''}>
                       <td data-label="Código" className="admin-client-cell">
@@ -1057,8 +1066,18 @@ Dentro de la app, andá a *Ajustes* y tocá el botón *"🟢 Conectar mi WhatsAp
                         </span>
                       </td>
                       <td data-label="Acciones" className="admin-row-actions">
-                        {item.is_used || isExpired ? (
+                        {item.is_used ? (
                           <span className="admin-muted admin-used-dash">—</span>
+                        ) : isExpired ? (
+                          <div className="action-buttons-group">
+                            <button
+                              type="button"
+                              className="action-btn small danger"
+                              onClick={() => void handleDeleteCode(item)}
+                            >
+                              Anular
+                            </button>
+                          </div>
                         ) : (
                           <div className="action-buttons-group">
                             <button
@@ -1073,7 +1092,7 @@ Dentro de la app, andá a *Ajustes* y tocá el botón *"🟢 Conectar mi WhatsAp
                               type="button"
                               className="action-btn small"
                               aria-label={'Copiar mensaje de ' + item.code}
-                              onClick={() => copyWhatsAppMessage(item.code)}
+                              onClick={() => copyWhatsAppMessage(item.code, item.expires_at)}
                             >
                               Mensaje
                             </button>

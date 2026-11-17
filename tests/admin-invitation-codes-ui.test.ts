@@ -116,12 +116,35 @@ describe('SEC-02: invitaciones generadas por el servidor en el Panel Admin', () 
     expect(row('PESO-VENC-IDOO-BBBB').querySelector('.admin-row-actions button[aria-label^="Copiar código"]')).toBeNull();
   });
 
-  it('el mensaje de WhatsApp menciona que el enlace vence en 7 días', async () => {
+  it('un código vencido se puede anular y no cuenta como disponible ni como usado', async () => {
+    const base = { duration_days: 30, used_by: null, used_at: null, created_by: 'admin-1', notes: null, created_at: '2026-11-10T00:00:00Z' };
+    state.codes = [
+      { ...base, id: 'c1', code: 'PESO-VIGE-NTEE-AAAA', is_used: false, expires_at: new Date(Date.now() + 3 * 86_400_000).toISOString() },
+      { ...base, id: 'c2', code: 'PESO-VENC-IDOO-BBBB', is_used: false, expires_at: new Date(Date.now() - 86_400_000).toISOString() },
+      { ...base, id: 'c3', code: 'PESO-USAD-OOOO-CCCC', is_used: true, used_at: '2026-11-12T00:00:00Z', expires_at: null },
+    ];
+    await openInvitations();
+    const expired = Array.from(container.querySelectorAll('.admin-codes-table tbody tr')).find((r) => r.textContent?.includes('PESO-VENC-IDOO-BBBB'))!;
+    expect(Array.from(expired.querySelectorAll('.admin-row-actions button')).map((b) => b.textContent)).toEqual(['Anular']);
+    const pills = Object.fromEntries(Array.from(container.querySelectorAll('.admin-code-filters button'))
+      .map((b) => [b.childNodes[0].textContent?.trim(), b.querySelector('span')?.textContent]));
+    expect(pills).toEqual({ Todas: '3', Disponibles: '1', Vencidas: '1', Usadas: '1' });
+  });
+
+  it('el mensaje de una fila usa la fecha de vencimiento de ese código', async () => {
+    state.codes = [{ id: 'c1', code: 'PESO-VIGE-NTEE-AAAA', duration_days: 30, is_used: false, used_by: null, used_at: null, created_by: 'admin-1',
+      notes: null, created_at: '2026-11-10T00:00:00Z', expires_at: '2099-03-05T15:00:00Z' }];
+    await openInvitations();
+    await act(async () => { (container.querySelector('button[aria-label="Copiar mensaje de PESO-VIGE-NTEE-AAAA"]') as HTMLButtonElement).click(); });
+    expect(writeText).toHaveBeenCalledWith(expect.stringMatching(/El enlace vence el 5 de mar\.? de 2099\./));
+  });
+
+  it('el mensaje de WhatsApp del código recién creado indica su fecha de vencimiento', async () => {
     await openInvitations();
     await submitNewCode();
     await vi.waitFor(() => expect(container.querySelector('.code-token')).not.toBeNull());
     const copyMsg = Array.from(container.querySelectorAll('.generated-code-box button')).find((b) => b.textContent === 'Copiar mensaje') as HTMLButtonElement;
     await act(async () => { copyMsg.click(); });
-    expect(writeText).toHaveBeenCalledWith(expect.stringContaining('El enlace vence en 7 días'));
+    expect(writeText).toHaveBeenCalledWith(expect.stringMatching(/El enlace vence el 24 de nov\.? de 2026\./));
   });
 });
