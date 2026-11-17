@@ -379,6 +379,12 @@ export function AdminPanel({ userId, onBack, onSignOut }: Props) {
     void loadData();
   }
 
+  function dismissGeneratedCode() {
+    setGeneratedCode(null);
+    setGeneratedExpiresAt(null);
+    setCopyFeedback(null);
+  }
+
   function copyOnlyCode(code: string) {
     void navigator.clipboard.writeText(code);
     setCopyFeedback(`¡Código ${code} copiado al portapapeles!`);
@@ -588,6 +594,7 @@ Dentro de la app, andá a *Ajustes* y tocá el botón *"🟢 Conectar mi WhatsAp
     if (error) {
       window.alert('Error al borrar código: ' + error.message);
     } else {
+      if (codeItem.code === generatedCode) dismissGeneratedCode();
       void loadData();
     }
   }
@@ -975,7 +982,17 @@ Dentro de la app, andá a *Ajustes* y tocá el botón *"🟢 Conectar mi WhatsAp
           )}
           {generatedCode && (
             <div className="generated-code-box">
-              <span className="code-label">Invitación lista</span>
+              <div className="generated-code-header">
+                <span className="code-label">Invitación lista</span>
+                <button
+                  type="button"
+                  className="admin-modal-close generated-code-close"
+                  aria-label="Cerrar invitación creada"
+                  onClick={dismissGeneratedCode}
+                >
+                  <Icon name="close" />
+                </button>
+              </div>
               <strong className="code-token">{generatedCode}</strong>
               <div className="code-actions">
                 <button
