@@ -24,9 +24,9 @@
 
 **Fuera de alcance:** códigos de renovación (ya en el servidor), SEC-10 (identificador del límite por cabeceras) y un límite propio en el alta (con ~10^18 combinaciones no aporta; se revisa el límite de Supabase Auth en la Fase 0.3).
 
-## SEC-03: MFA obligatorio para el administrador — 16/11/2026 (en rama)
+## SEC-03: MFA obligatorio para el administrador — publicado el 17/11/2026
 
-**Estado:** en rama `feat/admin-mfa`, **sin integrar ni publicar**. Es la primera corrección de código del plan de remediación de la auditoría de pre-lanzamiento (Fase 1.1).
+**Estado:** **publicado.** PWA **d350e08** (PR #101), SQL **001–052**, webhook sin cambios (v75). Es la primera corrección de código del plan de remediación de la auditoría de pre-lanzamiento (Fase 1.1). El propietario inscribió y verificó su TOTP en producción antes de aplicar la 052. Detalle en `docs/operaciones/DEPLOY_Y_ROLLBACK.md`.
 
 **Decisiones del propietario (16/11/2026):**
 - El MFA es obligatorio **solo para el administrador**. Ofrecerlo a los clientes queda para más adelante.
@@ -48,9 +48,10 @@
   - `tests/admin-mfa-sql.test.ts`: esquema 001–052 en PGlite. Cubre la guarda, `is_admin` con aal1 y aal2, las RPC de administración, las políticas, el trigger de perfiles, la renovación, que los clientes no cambian y los permisos.
   - `tests/admin-mfa-ui.test.ts`: interfaz con `auth.mfa` simulado.
 
-**No verificado:**
-- TOTP habilitado en el Auth de producción.
-- El flujo real en un navegador contra Supabase local o de producción.
+**Verificado:**
+- Flujo completo en navegador contra Supabase local aislado (16/11/2026, admin ficticio): pantalla en aal1, QR, código inválido rechazado, RPC de admin rechazada con aal1 y aceptada con aal2, reingreso con solo el código.
+- Producción (17/11/2026): TOTP inscripto por el propietario desde la PWA publicada; 052 aplicada; 1 admin y 0 admins sin TOTP verificado.
+- El ensayo de release ejecuta el contrato de renovación con aal2 y comprueba el rechazo con aal1 (`scripts/release-renewal-contract.mjs`).
 
 ## Configuración del agente y barrera de Supabase — 06/11/2026 (en rama)
 
