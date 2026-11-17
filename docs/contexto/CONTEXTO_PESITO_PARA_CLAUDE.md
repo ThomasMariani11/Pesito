@@ -10,9 +10,9 @@
 >
 > Sin contraseñas, tokens, claves, códigos utilizables, teléfonos de clientes, movimientos reales ni comprobantes. Todos los ejemplos financieros son ficticios.
 
-## SEC-02: códigos de invitación generados en el servidor — 17/11/2026 (en rama)
+## SEC-02: códigos de invitación generados en el servidor — publicado el 17/11/2026
 
-**Estado:** en rama `feat/sec-02-codigos-servidor`, **sin integrar ni publicar**. Fase 1.2 del plan de remediación. Diseño en `docs/superpowers/specs/2026-11-17-sec-02-codigos-invitacion-design.md`.
+**Estado:** **publicado.** PWA **0e247af** (PR #103), SQL **001–053**, webhook sin cambios (v75). La PWA se publicó antes que el SQL; la 053 se aplicó a continuación con autorización del propietario (detalle en `docs/operaciones/DEPLOY_Y_ROLLBACK.md`). Fase 1.2 del plan de remediación. Diseño en `docs/superpowers/specs/2026-11-17-sec-02-codigos-invitacion-design.md`.
 
 **Decisiones del propietario (17/11/2026):** los códigos de invitación vencen a los 7 días si no se usan; los ya repartidos y sin usar reciben el mismo plazo desde la migración. Enfoque A: RPC en el servidor y sin insert directo.
 
