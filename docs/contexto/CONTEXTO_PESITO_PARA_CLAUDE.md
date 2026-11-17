@@ -10,6 +10,20 @@
 >
 > Sin contraseñas, tokens, claves, códigos utilizables, teléfonos de clientes, movimientos reales ni comprobantes. Todos los ejemplos financieros son ficticios.
 
+## SEC-02: códigos de invitación generados en el servidor — 17/11/2026 (en rama)
+
+**Estado:** en rama `feat/sec-02-codigos-servidor`, **sin integrar ni publicar**. Fase 1.2 del plan de remediación. Diseño en `docs/superpowers/specs/2026-11-17-sec-02-codigos-invitacion-design.md`.
+
+**Decisiones del propietario (17/11/2026):** los códigos de invitación vencen a los 7 días si no se usan; los ya repartidos y sin usar reciben el mismo plazo desde la migración. Enfoque A: RPC en el servidor y sin insert directo.
+
+**Cambios:**
+- **Migración 053:** RPC `admin_create_invitation_code` (admin con AAL2; `PESO-XXXX-XXXX-XXXX` de 12 caracteres criptográficos; vence a los 7 días). Políticas de `invitation_codes` reducidas a `select`/`delete` del admin y sin `insert`/`update` de tabla para clientes. Vencimiento de 7 días para los libres sin usar existentes.
+- **PWA (`src/AdminPanel.tsx`):** "Crear código" usa la RPC (se eliminó la generación con `Math.random`); la lista muestra "Vence el …" o "Vencido" (sin botones de copiar); el mensaje de WhatsApp avisa que el enlace vence en 7 días.
+- **Contrato:** mínimo 053, rollback d350e08 (mínimo 052).
+- **Pruebas:** `tests/invitation-codes-sql.test.ts` (PGlite 001–053) y `tests/admin-invitation-codes-ui.test.ts`.
+
+**Fuera de alcance:** códigos de renovación (ya en el servidor), SEC-10 (identificador del límite por cabeceras) y un límite propio en el alta (con ~10^18 combinaciones no aporta; se revisa el límite de Supabase Auth en la Fase 0.3).
+
 ## SEC-03: MFA obligatorio para el administrador — 16/11/2026 (en rama)
 
 **Estado:** en rama `feat/admin-mfa`, **sin integrar ni publicar**. Es la primera corrección de código del plan de remediación de la auditoría de pre-lanzamiento (Fase 1.1).
