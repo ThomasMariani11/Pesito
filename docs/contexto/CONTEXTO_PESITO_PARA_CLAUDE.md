@@ -10,6 +10,21 @@
 >
 > Sin contraseñas, tokens, claves, códigos utilizables, teléfonos de clientes, movimientos reales ni comprobantes. Todos los ejemplos financieros son ficticios.
 
+## SEC-01: vinculación de WhatsApp robusta — 17/11/2026 (en rama)
+
+**Estado:** rama `feat/sec-01-vinculacion-robusta`, **sin integrar ni publicar**. Diseño en `docs/superpowers/specs/2026-11-17-sec-01-vinculacion-whatsapp-design.md`.
+
+**Decisiones del propietario:** enfoque A (código largo, sin paso de confirmación en la PWA); aviso al dueño con hasta ~1 h de demora por el cron horario.
+
+**Cambios:**
+- **Webhook:** `link-code.ts` (código `XXXX-XXXX-XXXX`, además del formato de 6 dígitos en transición), `processor.ts` y `client-push.ts` (avisos `whatsapp_linked` / `whatsapp_unlinked` por Web Push, sin número ni datos financieros).
+- **PWA:** `src/whatsappLink.ts` acepta el código nuevo y el anterior.
+- **Migración 054:** hash del código normalizado, anulación de códigos pendientes al generar uno nuevo y avisos de vínculo.
+- **Contrato:** mínimo 054, rollback 7d07b17 (mínimo 053). Orden: merge/PWA, webhook, SQL. No volver el webhook a v75 con la 054 aplicada (detalle en `docs/operaciones/DEPLOY_Y_ROLLBACK.md`).
+- **Pruebas:** `tests/whatsapp-link-code.test.ts`, `tests/client-push.test.ts`, `tests/whatsapp-link.test.ts`, `tests/whatsapp-link-strong-sql.test.ts`.
+
+**Pendiente:** pasados más de 10 minutos de aplicar la 054, quitar el formato de 6 dígitos del webhook y de la PWA en un cambio aparte.
+
 ## SEC-02: códigos de invitación generados en el servidor — publicado el 17/11/2026
 
 **Estado:** **publicado.** PWA **0e247af** (PR #103), SQL **001–053**, webhook sin cambios (v75). La PWA se publicó antes que el SQL; la 053 se aplicó a continuación con autorización del propietario (detalle en `docs/operaciones/DEPLOY_Y_ROLLBACK.md`). Fase 1.2 del plan de remediación. Diseño en `docs/superpowers/specs/2026-11-17-sec-02-codigos-invitacion-design.md`.

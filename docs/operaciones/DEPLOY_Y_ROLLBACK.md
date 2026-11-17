@@ -36,6 +36,27 @@ PWA **800e82101a1d4c5269ae32179e7169ed6bd005c3**, SQL **001–043**, webhook **v
 
 PWA 7dd418e, SQL 001–042, webhook v66 ACTIVE. PR #73 corrigió importes múltiples localmente. [Registro histórico](../planes/VALIDACION_BE_22_IMPORTES_MULTIPLES.md).
 
+## Contrato candidato 054 (SEC-01, vinculación de WhatsApp) — 17/11/2026
+
+Rama `feat/sec-01-vinculacion-robusta`: mínimo **054**, rollback fijado en **7d07b1791eb17d8c3b8d089f30ccdd32b6282d6f** (`main` con SQL 053 y la PWA de #106; mínimo **053**).
+
+**Qué cambia:**
+- Código de vinculación `XXXX-XXXX-XXXX` de 12 caracteres (alfabeto de 32). Se guarda el hash del código normalizado. La RPC acepta también el formato de 6 dígitos mientras dure la transición.
+- Avisos `whatsapp_linked` / `whatsapp_unlinked` por Web Push, enviados por el cron horario (demora de hasta ~1 h). El texto no incluye el número ni datos financieros.
+- Al generar un código nuevo se anulan los códigos pendientes anteriores del usuario.
+
+**Orden de publicación** (cada paso con autorización del propietario):
+1. Merge a `main`: Pages publica la PWA, que acepta ambos formatos de código.
+2. Deploy del webhook (acepta ambos formatos y redacta los avisos), con smoke 401 sin firma en `/`, `worker` y `client-push`.
+3. `db push --linked --dry-run` (debe proponer solo la 054) y luego `db push --linked`.
+4. Verificar: la RPC genera el código largo, la vinculación con ambos formatos funciona y llega el aviso en la siguiente corrida del cron.
+
+**Rollback:** conservar la 054. **No volver el webhook a v75 mientras la 054 esté aplicada**: v75 no reconoce el código largo; solo es posible junto con una migración nueva que restaure la RPC. La PWA anterior (7d07b17) rechaza el código nuevo ("No recibimos un código válido") hasta republicar. Nunca hacer un down.
+
+**No objetivos:** confirmación en la PWA antes de activar, límite global de intentos, avisos por WhatsApp (solo Web Push), bandeja de avisos en la PWA y botón "Desvincular".
+
+**Pendiente:** pasados más de 10 minutos de aplicar la 054, quitar el formato de 6 dígitos del webhook (`link-code.ts`) y de la PWA (`src/whatsappLink.ts`) en un cambio aparte.
+
 ## Contrato candidato 053 (SEC-02, códigos de invitación en el servidor) — 17/11/2026
 
 Rama `feat/sec-02-codigos-servidor`: mínimo **053**, rollback fijado en **d350e08412a10aa71a552adc73381654b05b0c3e** (`main` con la PWA publicada de SEC-03; mínimo **052**).

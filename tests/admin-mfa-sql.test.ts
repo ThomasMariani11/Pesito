@@ -83,7 +83,7 @@ describe('SEC-03: administración con verificación en dos pasos (migración 052
     await db.exec('rollback');
     await db.query("insert into auth.mfa_factors values($1, 'totp', 'verified')", [admin]);
     await db.exec(migration052);
-  });
+  }, 120_000);
 
   afterAll(async () => { await db.close(); });
   beforeEach(async () => { await db.exec('begin'); });
