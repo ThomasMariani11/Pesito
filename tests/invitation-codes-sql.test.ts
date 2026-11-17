@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach } from 'vitest';
 import { PGlite } from '@electric-sql/pglite';
 import { readFile as readSqlFile, readdir } from 'node:fs/promises';
+import { smokeInvitationContract } from '../scripts/release-invitation-contract.mjs';
 
 // SEC-02 (Fase 1.2): los códigos de invitación se generan solo en el servidor y vencen a los 7 días.
 // Datos ficticios. Esquema con las migraciones reales 001–052; la 053 se aplica sobre fixtures previos.
@@ -175,8 +176,12 @@ describe('SEC-02: códigos de invitación generados en el servidor (migración 0
 
   it('alta con código vencido falla', async () => {
     await db.exec("update public.invitation_codes set expires_at = now() - interval '1 minute' where code = 'PESO-LIBR-2026'");
+    await db.exec('savepoint signup');
     await expect(db.query(`insert into auth.users(id, email, raw_user_meta_data) values('53000000-0000-4000-8000-000000000010', 'vencido@example.invalid', '{"invitation_code":"PESO-LIBR-2026"}')`))
-      .rejects.toThrow();
+      .rejects.toThrow('REGISTRATION_INITIALIZATION_FAILED');
+    await db.exec('rollback to savepoint signup; release savepoint signup');
+    expect((await db.query("select 1 from public.profiles where id = '53000000-0000-4000-8000-000000000010'")).rows).toHaveLength(0);
+    expect((await codeRow('PESO-LIBR-2026')).is_used).toBe(false);
   });
 
   it('alta con código vigente escrito en minúsculas y con espacios funciona', async () => {
@@ -188,8 +193,8 @@ describe('SEC-02: códigos de invitación generados en el servidor (migración 0
 
   it('canje con código vencido devuelve success false', async () => {
     await db.exec("update public.invitation_codes set expires_at = now() - interval '1 minute' where code = 'PESO-LIBR-2026'");
-    const result = await as<{ success: boolean }>(client, 'aal1', "select public.redeem_invitation_code('PESO-LIBR-2026', $1) as r", [client]);
-    expect(result.success).toBe(false);
+    const result = await as<{ success: boolean; error: string }>(client, 'aal1', "select public.redeem_invitation_code('PESO-LIBR-2026', $1) as r", [client]);
+    expect(result).toMatchObject({ success: false, error: 'Código de invitación inválido o no disponible.' });
     expect((await codeRow('PESO-LIBR-2026')).is_used).toBe(false);
   });
 
@@ -198,5 +203,14 @@ describe('SEC-02: códigos de invitación generados en el servidor (migración 0
       "select prosecdef, proconfig from pg_proc where oid = 'public.admin_create_invitation_code(integer, text)'::regprocedure")).rows[0];
     expect(row.prosecdef).toBe(true);
     expect(row.proconfig).toContain('search_path=pg_catalog, public');
+  });
+
+  it('el contrato del ensayo de release para invitaciones pasa con la 053', async () => {
+    await smokeInvitationContract((sql: string) => db.exec(sql), { transaction: false });
+  });
+
+  it('el contrato detecta un permiso de escritura por columna para clientes', async () => {
+    await db.exec('grant update(notes) on public.invitation_codes to authenticated');
+    await expect(smokeInvitationContract((sql: string) => db.exec(sql), { transaction: false })).rejects.toThrow('RELEASE_INVITATION_DIRECT_WRITE');
   });
 });

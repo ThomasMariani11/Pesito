@@ -360,9 +360,15 @@ export function AdminPanel({ userId, onBack, onSignOut }: Props) {
 
     setIsGenerating(false);
 
+    if (error) {
+      window.alert('Error al generar código: ' + error.message);
+      return;
+    }
     const newCode = (data as { code?: unknown } | null)?.code;
-    if (error || typeof newCode !== 'string') {
-      window.alert('Error al generar código: ' + (error?.message ?? 'respuesta inesperada del servidor.'));
+    if (typeof newCode !== 'string') {
+      // El servidor respondió sin error: el código pudo haberse creado aunque no llegó en la respuesta.
+      window.alert('No se pudo mostrar el código nuevo. Revisá la lista de invitaciones antes de crear otro.');
+      void loadData();
       return;
     }
 
@@ -941,7 +947,7 @@ Dentro de la app, andá a *Ajustes* y tocá el botón *"🟢 Conectar mi WhatsAp
                       <option value={90}>3 meses · 90 días</option>
                       <option value={180}>6 meses · 180 días</option>
                       <option value={365}>1 año · 365 días</option>
-                      <option value="lifetime">Sin vencimiento</option>
+                      <option value="lifetime">Membresía vitalicia</option>
                     </select>
                   </label>
                   <label htmlFor="admin-invite-note">
@@ -1051,7 +1057,7 @@ Dentro de la app, andá a *Ajustes* y tocá el botón *"🟢 Conectar mi WhatsAp
                         <span className="cell-subtext">Creado {formatShortDate(item.created_at, now.getFullYear())}</span>
                       </td>
                       <td data-label="Duración" className="admin-code-duration-cell">
-                        {item.duration_days ? item.duration_days + ' días' : 'Sin vencimiento'}
+                        {item.duration_days ? item.duration_days + ' días' : 'Membresía vitalicia'}
                       </td>
                       <td data-label="Nota" className="admin-code-note-cell">{item.notes || '—'}</td>
                       <td data-label="Estado" className="admin-code-status-cell">

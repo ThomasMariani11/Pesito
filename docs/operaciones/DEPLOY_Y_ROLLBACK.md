@@ -43,6 +43,8 @@ Rama `feat/sec-02-codigos-servidor`: mínimo **053**, rollback fijado en **d350e
 3. Merge y publicación de la PWA. Entre los pasos 2 y 3, la PWA publicada no puede crear invitaciones (falla cerrado: el insert directo queda rechazado); el resto del panel funciona.
 4. Verificar: RPC SECURITY DEFINER con `search_path=pg_catalog, public`, EXECUTE para authenticated y no para anon, sin insert/update para clientes, 0 códigos libres sin usar y sin vencimiento; crear una invitación desde el panel con el código de dos pasos.
 
+**Ensayo de release:** el paso `invitaciones_053_generadas_en_servidor` (`scripts/release-invitation-contract.mjs`) comprueba en Supabase local los permisos reales (sin EXECUTE para anon; sin insert/update de tabla ni por columna para clientes), el rechazo con aal1, el formato y el vencimiento con aal2, y el rechazo del insert directo como `authenticated`. Es SQL sobre el stack, no una llamada por PostgREST con una sesión TOTP real.
+
 **Webhook:** sin cambios.
 
 **Rollback:** conservar 053. La PWA anterior (d350e08) funciona salvo "Crear código", que queda rechazado hasta republicar la versión con la RPC. Nunca hacer un down.

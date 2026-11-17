@@ -361,7 +361,7 @@ export function Settings({
                   type="text"
                   required
                   className="invite-code-input"
-                  placeholder="PESO-XXXX"
+                  placeholder="Pegá el código que te enviamos"
                   value={renewalCode}
                   onChange={(e) => setRenewalCode(e.target.value.toUpperCase().replace(/\s+/g, ''))}
                 />

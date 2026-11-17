@@ -68,7 +68,7 @@ export function Login() {
     abortControllerRef.current?.abort();
   }, []);
 
-  // 1. Detectar si vino código por parámetro en la URL (?invitacion=PESO-XXXX o ?code=PESO-XXXX)
+  // 1. Detectar si vino código por parámetro en la URL (?invitacion=PESO-… o ?code=PESO-…)
   useEffect(() => {
     try {
       const params = new URLSearchParams(window.location.search);
@@ -441,7 +441,7 @@ export function Login() {
                   required
                   type="text"
                   className="invite-code-input"
-                  placeholder="PESO-XXXX"
+                  placeholder="PESO-XXXX-XXXX-XXXX"
                   value={inviteCode}
                   onChange={(e) => handleCodeChange(e.target.value)}
                   onBlur={() => {

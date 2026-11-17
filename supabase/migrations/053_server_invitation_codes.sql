@@ -79,10 +79,11 @@ begin
      or has_function_privilege('anon', 'public.admin_create_invitation_code(integer,text)', 'execute') then
     raise exception 'SEC02_PERMISOS_FUNCION';
   end if;
-  if has_table_privilege('authenticated', 'public.invitation_codes', 'insert')
-     or has_table_privilege('authenticated', 'public.invitation_codes', 'update')
-     or has_table_privilege('anon', 'public.invitation_codes', 'insert')
-     or has_table_privilege('anon', 'public.invitation_codes', 'update') then
+  -- has_any_column_privilege también detecta concesiones por columna (p. ej. grant update(notes)).
+  if has_any_column_privilege('authenticated', 'public.invitation_codes', 'insert')
+     or has_any_column_privilege('authenticated', 'public.invitation_codes', 'update')
+     or has_any_column_privilege('anon', 'public.invitation_codes', 'insert')
+     or has_any_column_privilege('anon', 'public.invitation_codes', 'update') then
     raise exception 'SEC02_ESCRITURA_DIRECTA';
   end if;
   if exists (select 1 from pg_policies where schemaname = 'public' and tablename = 'invitation_codes'

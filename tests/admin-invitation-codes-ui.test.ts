@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { act, createElement as h } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
+import { readFileSync } from 'node:fs';
 import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
 
 // SEC-02: el Panel Admin pide el código al servidor (admin_create_invitation_code) y muestra su vencimiento.
@@ -8,6 +9,7 @@ const state = vi.hoisted(() => ({
   codes: [] as Record<string, unknown>[],
   rpc: null as unknown as Mock<(...args: unknown[]) => Promise<unknown>>,
   inserts: [] as string[],
+  loads: 0,
 }));
 
 vi.mock('../src/BotOperations', () => ({ BotOperations: () => null }));
@@ -15,6 +17,7 @@ vi.mock('../src/SubscriptionPayments', () => ({ SubscriptionPayments: () => null
 vi.mock('../src/supabase', () => ({
   supabase: {
     from: (table: string) => {
+      if (table === 'invitation_codes') state.loads++;
       const data = table === 'invitation_codes' ? state.codes : table === 'system_config' ? [] : [];
       const q: Record<string, unknown> = {};
       for (const m of ['select', 'eq', 'in', 'order', 'limit', 'gte', 'lt', 'abortSignal', 'delete', 'upsert']) q[m] = () => q;
@@ -146,5 +149,35 @@ describe('SEC-02: invitaciones generadas por el servidor en el Panel Admin', () 
     const copyMsg = Array.from(container.querySelectorAll('.generated-code-box button')).find((b) => b.textContent === 'Copiar mensaje') as HTMLButtonElement;
     await act(async () => { copyMsg.click(); });
     expect(writeText).toHaveBeenCalledWith(expect.stringMatching(/El enlace vence el 24 de nov\.? de 2026\./));
+  });
+  it('la duración vitalicia se lee como membresía, no como vencimiento del código', async () => {
+    state.codes = [{ id: 'c1', code: 'PESO-VITA-LICI-AAAA', duration_days: null, is_used: false, used_by: null, used_at: null, created_by: 'admin-1',
+      notes: null, created_at: '2026-11-10T00:00:00Z', expires_at: new Date(Date.now() + 3 * 86_400_000).toISOString() }];
+    await openInvitations();
+    const row = container.querySelector('.admin-codes-table tbody tr')!;
+    expect(row.querySelector('.admin-code-duration-cell')?.textContent).toBe('Membresía vitalicia');
+    const open = Array.from(container.querySelectorAll('button')).find((b) => b.textContent === 'Nueva invitación') as HTMLButtonElement;
+    await act(async () => { open.click(); });
+    expect((container.querySelector('#admin-invite-duration option[value="lifetime"]') as HTMLOptionElement).textContent).toBe('Membresía vitalicia');
+  });
+
+  it('si la RPC responde sin código, avisa que puede haberse creado y recarga la lista', async () => {
+    const alert = vi.spyOn(window, 'alert').mockImplementation(() => {});
+    state.rpc = vi.fn(async (...args: unknown[]) => (args[0] === 'admin_create_invitation_code' ? { data: {}, error: null } : { data: [], error: null }));
+    await openInvitations();
+    const before = state.loads;
+    await submitNewCode();
+    expect(alert).toHaveBeenCalledWith(expect.stringContaining('Revisá la lista'));
+    expect(container.querySelector('.code-token')).toBeNull();
+    await vi.waitFor(() => expect(state.loads).toBeGreaterThan(before));
+  });
+
+  it('los campos de código muestran ejemplos del formato vigente', () => {
+    const src = (f: string) => readFileSync(new URL('../src/' + f, import.meta.url), 'utf8');
+    expect(src('Login.tsx')).toContain('placeholder="PESO-XXXX-XXXX-XXXX"');
+    for (const f of ['Paywall.tsx', 'Settings.tsx']) {
+      expect(src(f)).not.toContain('placeholder="PESO-XXXX"');
+      expect(src(f)).toContain('placeholder="Pegá el código que te enviamos"');
+    }
   });
 });
