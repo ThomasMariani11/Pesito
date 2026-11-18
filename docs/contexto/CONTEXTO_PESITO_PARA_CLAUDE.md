@@ -10,9 +10,9 @@
 >
 > Sin contraseñas, tokens, claves, códigos utilizables, teléfonos de clientes, movimientos reales ni comprobantes. Todos los ejemplos financieros son ficticios.
 
-## SEC-01: vinculación de WhatsApp robusta — 17/11/2026 (en rama)
+## SEC-01: vinculación de WhatsApp robusta — publicado el 18/11/2026
 
-**Estado:** rama `feat/sec-01-vinculacion-robusta`, **sin integrar ni publicar**. Diseño en `docs/superpowers/specs/2026-11-17-sec-01-vinculacion-whatsapp-design.md`.
+**Estado:** **publicado.** PWA **8406a9e** (PR #107), SQL **001–054**, webhook **v76**. Orden: merge (PWA) → webhook v76 con smoke 401 → `db push` de la 054 (18/11/2026 00:42 UTC). Detalle y verificación en `docs/operaciones/DEPLOY_Y_ROLLBACK.md`. Diseño en `docs/superpowers/specs/2026-11-17-sec-01-vinculacion-whatsapp-design.md`.
 
 **Decisiones del propietario:** enfoque A (código largo, sin paso de confirmación en la PWA); aviso al dueño con hasta ~1 h de demora por el cron horario.
 
