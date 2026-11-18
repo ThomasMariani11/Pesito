@@ -27,11 +27,11 @@ function defaultEnvironment(): PushEnvironment {
   };
 }
 
-function isIos(nav: Navigator): boolean {
+export function isIos(nav: Navigator): boolean {
   return /iPhone|iPad|iPod/i.test(nav.userAgent) || (nav.platform === 'MacIntel' && nav.maxTouchPoints > 1);
 }
 
-function isStandalone(win: Window): boolean {
+export function isStandalone(win: Window): boolean {
   return win.matchMedia?.('(display-mode: standalone)').matches === true
     || (win.navigator as Navigator & { standalone?: boolean }).standalone === true;
 }

@@ -36,6 +36,7 @@ import { InstallAppModal } from './InstallAppModal';
 import { ClientNotices } from './ClientNotices';
 import { MonthCloseCard } from './MonthCloseCard';
 import { PushPrompt } from './PushPrompt';
+import { IconNotice } from './IconNotice';
 import { sidebarStatus, type BotService } from './sidebarStatus';
 import { ENTRY_ALREADY_SAVED, ENTRY_NOTICE_TTL_MS, ENTRY_REMOVED_BEFORE, ENTRY_REPLAYED, ENTRY_SAVED, isTransientEntryNotice } from './entryNotice';
 import type { UserProfile } from './Settings';
@@ -967,6 +968,9 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
           </div>
         </section>
       )}
+
+      {/* MARCA-02: en iPhone instalado, cómo reinstalar para ver el ícono nuevo (solo en el resumen) */}
+      {activeSection !== '#movimientos' && activeSection !== '#cuotas' && <IconNotice />}
 
       {/* FE-26: invitación a activar notificaciones sin pasar por Ajustes (solo en el resumen) */}
       {activeSection !== '#movimientos' && activeSection !== '#cuotas' && (
