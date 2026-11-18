@@ -69,4 +69,35 @@ describe('marca: íconos PNG exportados', () => {
   });
 });
 
+describe('marca: logo conectado en la app', () => {
+  it('el manifest separa any y maskable', () => {
+    const manifest = JSON.parse(read('public/manifest.webmanifest'));
+    expect(manifest.icons).toEqual([
+      { src: './icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
+      { src: './icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
+      { src: './icon-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+    ]);
+    for (const icon of manifest.icons) expect(exists(`public/${icon.src.slice(2)}`)).toBe(true);
+  });
+
+  it('index.html declara el favicon SVG antes del PNG', () => {
+    const html = read('index.html');
+    const svgLink = html.indexOf('<link rel="icon" type="image/svg+xml" href="./favicon.svg" />');
+    const pngLink = html.indexOf('<link rel="icon" type="image/png" sizes="192x192" href="./icon-192.png" />');
+    expect(svgLink).toBeGreaterThan(-1);
+    expect(pngLink).toBeGreaterThan(svgLink);
+  });
+
+  it('el encabezado del Dashboard usa el logo', () => {
+    const source = read('src/Dashboard.tsx');
+    expect(source).toMatch(/className="brand-mark"[^>]*src=\{`\$\{import\.meta\.env\.BASE_URL\}favicon\.svg`\}/);
+    expect(source).not.toContain('brand-mark">P<');
+  });
+
+  it('las notificaciones push siguen usando un ícono existente', () => {
+    expect(read('public/sw.js')).toContain("new URL('icon-192.png', base)");
+    expect(exists('public/icon-192.png')).toBe(true);
+  });
+});
+
 export { exists, read };
