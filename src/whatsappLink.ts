@@ -5,7 +5,7 @@ export async function requestWhatsAppLinkCode(): Promise<{ code: string; expires
   if (error) throw new Error('No pudimos generar el código de vinculación.');
   const result: unknown = data;
   if (!result || typeof result !== 'object' || !('code' in result) || !('expires_at' in result)
-    || typeof result.code !== 'string' || !/^\d{6}$/.test(result.code)
+    || typeof result.code !== 'string' || !/^(\d{6}|[23456789ABCDEFGHJKLMNPQRSTUVWXYZ]{4}(-[23456789ABCDEFGHJKLMNPQRSTUVWXYZ]{4}){2})$/.test(result.code)
     || typeof result.expires_at !== 'string' || !Number.isFinite(Date.parse(result.expires_at))) {
     throw new Error('No recibimos un código de vinculación válido.');
   }
