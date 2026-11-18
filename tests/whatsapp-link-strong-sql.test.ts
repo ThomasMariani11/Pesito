@@ -2,6 +2,7 @@ import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach } from
 import { PGlite } from '@electric-sql/pglite';
 import { readFile as readSqlFile, readdir } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
+import { parseLinkCommand } from '../supabase/functions/whatsapp-webhook/link-code.ts';
 
 // SEC-01 (Fase 1.3): código de vinculación de WhatsApp largo y avisos de vínculo por Web Push.
 // Datos ficticios. Esquema con las migraciones reales 001–053; la 054 se aplica sobre fixtures previos.
@@ -128,7 +129,7 @@ describe('SEC-01: vinculación de WhatsApp con código largo (migración 054)', 
   }
 
   const linkWithNewCode = async (user: string, sender: string) =>
-    applyLink(sender, sha256((await requestCode(user)).code.replace(/-/g, '')));
+    applyLink(sender, sha256(parseLinkCommand('vincular ' + (await requestCode(user)).code.toLowerCase())!));
 
   const notices = async (user?: string) => (await db.query<Notice>(
     `select user_id, kind, period_key from public.client_notifications
@@ -206,6 +207,20 @@ describe('SEC-01: vinculación de WhatsApp con código largo (migración 054)', 
     expect(rows.map((r) => [r.user_id, r.kind]).sort()).toEqual([[userA, 'whatsapp_unlinked'], [userB, 'whatsapp_linked']].sort());
     const linkA = (await db.query<{ wa_id: string | null }>('select wa_id from public.whatsapp_links where user_id = $1', [userA])).rows[0];
     expect(linkA.wa_id).toBeNull();
+  });
+
+  it('número que pasa de una cuenta sin push a otra con push → solo whatsapp_linked de la nueva', async () => {
+    await linkWithNewCode(userC, sender1);
+    expect(await linkWithNewCode(userA, sender1)).toContain(OK_REPLY);
+    expect((await notices()).map((r) => [r.user_id, r.kind])).toEqual([[userA, 'whatsapp_linked']]);
+  });
+
+  it('dueño previo presente solo en profiles.phone_number → whatsapp_unlinked si tiene push', async () => {
+    await db.query('update public.profiles set phone_number = $2 where id = $1', [userA, sender1]);
+    const active = (await db.query<{ n: number }>("select count(*)::int as n from public.whatsapp_links where wa_id = $1 and status = 'active'", [sender1])).rows[0];
+    expect(active.n).toBe(0);
+    expect(await linkWithNewCode(userB, sender1)).toContain(OK_REPLY);
+    expect((await notices()).map((r) => [r.user_id, r.kind]).sort()).toEqual([[userA, 'whatsapp_unlinked'], [userB, 'whatsapp_linked']].sort());
   });
 
   it('re-vincular el mismo número → sin avisos nuevos', async () => {

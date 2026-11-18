@@ -19,7 +19,7 @@
 **Cambios:**
 - **Webhook:** `link-code.ts` (código `XXXX-XXXX-XXXX`, además del formato de 6 dígitos en transición), `processor.ts` y `client-push.ts` (avisos `whatsapp_linked` / `whatsapp_unlinked` por Web Push, sin número ni datos financieros).
 - **PWA:** `src/whatsappLink.ts` acepta el código nuevo y el anterior.
-- **Migración 054:** hash del código normalizado, anulación de códigos pendientes al generar uno nuevo y avisos de vínculo.
+- **Migración 054:** hash del código normalizado, al aplicarse, anulación de todos los códigos pendientes y avisos de vínculo.
 - **Contrato:** mínimo 054, rollback 7d07b17 (mínimo 053). Orden: merge/PWA, webhook, SQL. No volver el webhook a v75 con la 054 aplicada (detalle en `docs/operaciones/DEPLOY_Y_ROLLBACK.md`).
 - **Pruebas:** `tests/whatsapp-link-code.test.ts`, `tests/client-push.test.ts`, `tests/whatsapp-link.test.ts`, `tests/whatsapp-link-strong-sql.test.ts`.
 

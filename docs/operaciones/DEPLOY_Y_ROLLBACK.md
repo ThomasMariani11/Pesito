@@ -43,12 +43,12 @@ Rama `feat/sec-01-vinculacion-robusta`: mínimo **054**, rollback fijado en **7d
 **Qué cambia:**
 - Código de vinculación `XXXX-XXXX-XXXX` de 12 caracteres (alfabeto de 32). Se guarda el hash del código normalizado. La RPC solo genera el formato nuevo y la 054 anula los códigos pendientes; durante la transición el webhook y la PWA aceptan también el formato de 6 dígitos (los emitidos por el SQL anterior).
 - Avisos `whatsapp_linked` / `whatsapp_unlinked` por Web Push, enviados por el cron horario (demora de hasta ~1 h). El texto no incluye el número ni datos financieros.
-- Al generar un código nuevo se anulan los códigos pendientes anteriores del usuario.
+- Al aplicarse, la 054 anula todos los códigos pendientes.
 
 **Orden de publicación** (cada paso con autorización del propietario):
 1. Merge a `main`: Pages publica la PWA, que acepta ambos formatos de código.
 2. Deploy del webhook (acepta ambos formatos y redacta los avisos), con smoke 401 sin firma en `/`, `worker` y `client-push`.
-3. `db push --linked --dry-run` (debe proponer solo la 054) y luego `db push --linked`.
+3. `db push --linked --dry-run` (debe proponer solo la 054) y luego `db push --linked`. Antes del db push, la PWA nueva tiene que estar publicada (aviso de nueva versión disponible). Quien tenga abierta la versión anterior ve "No pudimos generar el código" al vincular hasta recargar.
 4. Verificar: la RPC genera el código largo, la vinculación con ambos formatos funciona y llega el aviso en la siguiente corrida del cron.
 
 **Rollback:** conservar la 054. **No volver el webhook a v75 mientras la 054 esté aplicada**: v75 no reconoce el código largo; solo es posible junto con una migración nueva que restaure la RPC. La PWA anterior (7d07b17) rechaza el código nuevo ("No recibimos un código válido") hasta republicar. Nunca hacer un down.

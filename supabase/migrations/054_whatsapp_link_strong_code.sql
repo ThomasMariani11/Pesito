@@ -4,7 +4,9 @@
 begin;
 set local lock_timeout = '5s';
 
--- Ningún código de 6 dígitos puede generarse ni quedar vigente mientras se aplica la migración.
+-- Impide escrituras concurrentes en whatsapp_links mientras se aplica; una llamada de la RPC anterior ya en curso
+-- puede emitir un último código de 6 dígitos al terminar (vence en 10 minutos). Por eso el webhook y la PWA
+-- siguen aceptando 6 dígitos durante la transición.
 lock table public.whatsapp_links in share row exclusive mode;
 
 -- 1. Dos tipos nuevos de aviso: reemplazar el check de client_notifications.kind (como 051).
