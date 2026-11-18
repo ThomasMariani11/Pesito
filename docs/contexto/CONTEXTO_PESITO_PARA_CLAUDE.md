@@ -23,7 +23,7 @@
 - **Contrato:** mínimo 054, rollback 7d07b17 (mínimo 053). Orden: merge/PWA, webhook, SQL. No volver el webhook a v75 con la 054 aplicada (detalle en `docs/operaciones/DEPLOY_Y_ROLLBACK.md`).
 - **Pruebas:** `tests/whatsapp-link-code.test.ts`, `tests/client-push.test.ts`, `tests/whatsapp-link.test.ts`, `tests/whatsapp-link-strong-sql.test.ts`.
 
-**Pendiente:** pasados más de 10 minutos de aplicar la 054, quitar el formato de 6 dígitos del webhook y de la PWA en un cambio aparte.
+**Seguimiento (rama `fix/sec-01-quitar-seis-digitos`, 18/11/2026):** el webhook (`link-code.ts`) y la PWA (`src/whatsappLink.ts`) ya no aceptan el formato de 6 dígitos. El bot reconoce el código solo con guiones o sin separadores y con caracteres del alfabeto de la 054; un texto con otra forma (p. ej. con espacios o tres palabras de 4 letras) sigue el camino normal y no suma intentos. Publicación: merge (PWA) y deploy del webhook, en cualquier orden (el SQL ya no emite 6 dígitos). Rollback: volver PWA y webhook a 8406a9e / v76, compatibles con la 054.
 
 ## SEC-02: códigos de invitación generados en el servidor — publicado el 17/11/2026
 
