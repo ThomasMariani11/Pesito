@@ -81,14 +81,29 @@ describe('MARCA-02 · tarjeta en el Resumen', () => {
     const region = container.querySelector('[role="region"][aria-label="Ícono nuevo de Pesito"]');
     expect(region).not.toBeNull();
     expect(region!.textContent).toContain('Pesito estrenó ícono');
-    expect(region!.textContent).toContain('Si todavía ves el chanchito con la flecha: tocá Abrir en navegador, después Compartir → Agregar a inicio, y borrá el ícono viejo. Vas a tener que iniciar sesión y activar las notificaciones de nuevo.');
+    expect(region!.textContent).toContain('¿Todavía ves el chanchito con la flecha? Actualizalo en 3 pasos:');
+    const steps = Array.from(region!.querySelectorAll('ol > li')).map((li) => li.textContent);
+    expect(steps).toEqual(['Tocá Abrir en navegador', 'Compartir → Agregar a inicio', 'Borrá el ícono viejo']);
+    expect(region!.textContent).toContain('Vas a tener que iniciar sesión y activar las notificaciones de nuevo.');
     const link = Array.from(region!.querySelectorAll('a')).find((a) => a.textContent === 'Abrir en navegador');
     expect(link?.getAttribute('href')).toBe('x-safari-https://thomasmariani11.github.io/chatbot-gastos/');
   });
 
-  it('"Entendido" lo oculta y lo recuerda', () => {
+  it('se destaca y compara el ícono viejo con el nuevo', () => {
     render({ ios: true, standalone: true });
-    const button = Array.from(container.querySelectorAll('button')).find((b) => b.textContent === 'Entendido');
+    const region = container.querySelector('[aria-label="Ícono nuevo de Pesito"]')!;
+    expect(region.classList.contains('icon-notice')).toBe(true);
+    expect(region.textContent).toContain('Nuevo');
+    const images = Array.from(region.querySelectorAll('img')).map((img) => [img.getAttribute('src'), img.getAttribute('alt')]);
+    expect(images).toEqual([
+      [`${import.meta.env.BASE_URL}icon-anterior.png`, 'Ícono anterior'],
+      [`${import.meta.env.BASE_URL}favicon.svg`, 'Ícono nuevo'],
+    ]);
+  });
+
+  it('"Ya lo hice" lo oculta y lo recuerda', () => {
+    render({ ios: true, standalone: true });
+    const button = Array.from(container.querySelectorAll('button')).find((b) => b.textContent === 'Ya lo hice');
     act(() => button!.click());
     expect(container.querySelector('[aria-label="Ícono nuevo de Pesito"]')).toBeNull();
     expect(readIconNoticeDismissed()).toBe(true);

@@ -33,18 +33,23 @@ export function IconNotice({ env, now = Date.now, appUrl }: Props) {
 
   return (
     <div className="client-notices">
-      <section className="client-notice client-notice-info" role="region" aria-label="Ícono nuevo de Pesito">
-        <span className="client-notice-icon" aria-hidden="true"><Icon name="sparkles" size={18} /></span>
-        <div className="client-notice-copy">
-          <strong>Pesito estrenó ícono</strong>
-          <small>
-            Si todavía ves el chanchito con la flecha: tocá Abrir en navegador, después Compartir → Agregar a inicio, y borrá el ícono viejo. Vas a tener que iniciar sesión y activar las notificaciones de nuevo.
-          </small>
+      <section className="icon-notice" role="region" aria-label="Ícono nuevo de Pesito">
+        <div className="icon-notice-compare">
+          <img className="icon-notice-old" src={`${import.meta.env.BASE_URL}icon-anterior.png`} alt="Ícono anterior" width={44} height={44} />
+          <Icon name="chevronRight" size={22} />
+          <img className="icon-notice-new" src={`${import.meta.env.BASE_URL}favicon.svg`} alt="Ícono nuevo" width={58} height={58} />
+          <span className="icon-notice-badge">Nuevo</span>
         </div>
-        <div className="client-notice-actions">
-          <a className="button-secondary" href={browserUrl(appUrl ?? currentAppUrl())}>Abrir en navegador</a>
-          <button type="button" className="text-button" onClick={close}>Entendido</button>
-        </div>
+        <strong className="icon-notice-title">Pesito estrenó ícono</strong>
+        <p>¿Todavía ves el chanchito con la flecha? Actualizalo en 3 pasos:</p>
+        <ol>
+          <li>Tocá <b>Abrir en navegador</b></li>
+          <li>Compartir → Agregar a inicio</li>
+          <li>Borrá el ícono viejo</li>
+        </ol>
+        <small>Vas a tener que iniciar sesión y activar las notificaciones de nuevo.</small>
+        <a className="icon-notice-primary" href={browserUrl(appUrl ?? currentAppUrl())}>Abrir en navegador</a>
+        <button type="button" className="icon-notice-close" onClick={close}>Ya lo hice</button>
       </section>
     </div>
   );
