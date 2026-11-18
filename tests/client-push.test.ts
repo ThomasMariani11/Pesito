@@ -129,6 +129,25 @@ describe('Despacho de avisos push', () => {
     expect(formatClientPush({ kind: 'monthly_summary', days: null }, Date.parse('2026-12-31T23:30:00-03:00'))!.title).toBe('📊 Tu resumen de noviembre');
   });
 
+  it('los avisos de vínculo de WhatsApp tienen texto fijo, sin números ni datos personales', () => {
+    const linked = formatClientPush({ kind: 'whatsapp_linked', days: null })!;
+    const unlinked = formatClientPush({ kind: 'whatsapp_unlinked', days: null })!;
+    expect(linked).toEqual({
+      title: 'Tu WhatsApp quedó vinculado',
+      body: 'Pesito ya recibe tus mensajes desde un número nuevo. Si no fuiste vos, volvé a conectar tu número desde Ajustes.',
+      url: './#settings',
+      tag: 'pesito-whatsapp-vinculado',
+    });
+    expect(unlinked).toEqual({
+      title: 'Tu WhatsApp se desvinculó',
+      body: 'Ese número se vinculó a otra cuenta. Si no fuiste vos, volvé a conectarlo desde Ajustes.',
+      url: './#settings',
+      tag: 'pesito-whatsapp-desvinculado',
+    });
+    expect(linked.tag).not.toBe(unlinked.tag);
+    for (const push of [linked, unlinked]) expect(`${push.title} ${push.body}`).not.toMatch(/\d/);
+  });
+
   it('un tipo desconocido no tiene texto', () => {
     expect(formatClientPush({ kind: 'otro' as never, days: null })).toBeNull();
   });

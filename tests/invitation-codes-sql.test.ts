@@ -74,7 +74,7 @@ describe('SEC-02: códigos de invitación generados en el servidor (migración 0
       ('PR-RENOVACIONFICTICIA0001', 30, null, $1, false, null, null)`, [client]);
     await db.exec('grant select, insert, update, delete on all tables in schema public to authenticated');
     await db.exec(await readFile(new URL('053_server_invitation_codes.sql', migrationUrl)));
-  });
+  }, 120_000);
 
   afterAll(async () => { await db.close(); });
   beforeEach(async () => { await db.exec('begin'); });

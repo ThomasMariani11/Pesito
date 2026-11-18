@@ -1,6 +1,10 @@
 # Entornos, publicación y rollback compatible (INF-10)
 
-## Última publicación observada — 17/11/2026 (SEC-02, códigos de invitación en el servidor)
+## Última publicación observada — 18/11/2026 (SEC-01, vinculación de WhatsApp robusta)
+
+PWA **8406a9eab0c470db573c640384b290d3cc41a6de** (PR #107), SQL **001–054**, webhook **v76 ACTIVE** (verify_jwt=false). Orden ejecutado con autorización del propietario: excepción temporal de auditoría para GHSA-fc5q-39xc-vjpf (PR #108, vence el 18/12/2026) → merge de la PR #107 → CI de `main` en verde y Pages con `version.json` = 8406a9e (la PWA acepta ambos formatos) → deploy del webhook desde 8406a9e (v76) → smoke 401 en `/`, `worker` y `client-push` → `db push --linked --dry-run` (solo 054) → `db push --linked` (00:42 UTC; la sustitución verificada de la rama link no abortó) → verificación de solo lectura por `db query --linked` (historial 054; `request_whatsapp_link_code` con el alfabeto de 32, SECURITY DEFINER, `search_path=pg_catalog, public`, EXECUTE para authenticated y no para anon; una sola `apply_whatsapp_job`, SECURITY DEFINER, mismo `search_path`, sin EXECUTE para authenticated, encola `whatsapp_linked`/`whatsapp_unlinked`; check de `kind` con los tipos nuevos; 0 códigos pendientes; 4 vínculos activos intactos; cola habilitada; un cron `pesito-client-push`). Prueba previa en PGlite y en el ensayo de release del CI. Rollback: conservar 054; **no volver el webhook a v75**; PWA a 7d07b17 rechaza el código largo hasta republicar. **Pendiente:** quitar el formato de 6 dígitos del webhook y la PWA (posible desde las 00:52 UTC del 18/11/2026), junto con los menores diferidos.
+
+## Registro histórico — 17/11/2026 (SEC-02, códigos de invitación en el servidor)
 
 PWA **0e247af7d230b24a6fc439644b7851a2d3131728** (PR #103), SQL **001–053**, webhook **v75** sin cambios. Orden ejecutado: merge de la PR (CI en verde, incluido el paso del ensayo `invitaciones_053_generadas_en_servidor`) → Pages publicó la PWA **antes** que el SQL (desvío del orden previsto; efecto: "Crear código" rechazado hasta aplicar la 053, sin crear códigos débiles) → con autorización del propietario, `db push --linked --dry-run` (solo 053) → `db push --linked` → verificación de solo lectura por `db query --linked` (historial 053; RPC SECURITY DEFINER con `search_path=pg_catalog, public`, EXECUTE para authenticated y no para anon; sin insert/update de tabla ni por columna para anon/authenticated; delete para authenticated; políticas: admin select/delete y las dos de `pesito_subscription_writer`; 0 códigos libres sin vencimiento —no había invitaciones sin usar al aplicar—; 1 código de renovación intacto) → Pages con `version.json` = 0e247af. Rollback: conservar 053; PWA a d350e08 (falla cerrado en "Crear código").
 
@@ -35,6 +39,27 @@ PWA **800e82101a1d4c5269ae32179e7169ed6bd005c3**, SQL **001–043**, webhook **v
 ## Registro histórico previo: v66 y BE-22 — 30/10/2026
 
 PWA 7dd418e, SQL 001–042, webhook v66 ACTIVE. PR #73 corrigió importes múltiples localmente. [Registro histórico](../planes/VALIDACION_BE_22_IMPORTES_MULTIPLES.md).
+
+## Contrato candidato 054 (SEC-01, vinculación de WhatsApp) — 17/11/2026
+
+Rama `feat/sec-01-vinculacion-robusta`: mínimo **054**, rollback fijado en **7d07b1791eb17d8c3b8d089f30ccdd32b6282d6f** (`main` con SQL 053 y la PWA de #106; mínimo **053**).
+
+**Qué cambia:**
+- Código de vinculación `XXXX-XXXX-XXXX` de 12 caracteres (alfabeto de 32). Se guarda el hash del código normalizado. La RPC solo genera el formato nuevo y la 054 anula los códigos pendientes; durante la transición el webhook y la PWA aceptan también el formato de 6 dígitos (los emitidos por el SQL anterior).
+- Avisos `whatsapp_linked` / `whatsapp_unlinked` por Web Push, enviados por el cron horario (demora de hasta ~1 h). El texto no incluye el número ni datos financieros.
+- Al aplicarse, la 054 anula todos los códigos pendientes.
+
+**Orden de publicación** (cada paso con autorización del propietario):
+1. Merge a `main`: Pages publica la PWA, que acepta ambos formatos de código.
+2. Deploy del webhook (acepta ambos formatos y redacta los avisos), con smoke 401 sin firma en `/`, `worker` y `client-push`.
+3. `db push --linked --dry-run` (debe proponer solo la 054) y luego `db push --linked`. Antes del db push, la PWA nueva tiene que estar publicada (aviso de nueva versión disponible). Quien tenga abierta la versión anterior ve "No pudimos generar el código" al vincular hasta recargar.
+4. Verificar: la RPC genera el código largo, la vinculación con ambos formatos funciona y llega el aviso en la siguiente corrida del cron.
+
+**Rollback:** conservar la 054. **No volver el webhook a v75 mientras la 054 esté aplicada**: v75 no reconoce el código largo; solo es posible junto con una migración nueva que restaure la RPC. La PWA anterior (7d07b17) rechaza el código nuevo ("No recibimos un código válido") hasta republicar. Nunca hacer un down.
+
+**No objetivos:** confirmación en la PWA antes de activar, límite global de intentos, avisos por WhatsApp (solo Web Push), bandeja de avisos en la PWA y botón "Desvincular".
+
+**Pendiente:** pasados más de 10 minutos de aplicar la 054, quitar el formato de 6 dígitos del webhook (`link-code.ts`) y de la PWA (`src/whatsappLink.ts`) en un cambio aparte.
 
 ## Auditoría de dependencias con excepciones acotadas — 17/11/2026
 
