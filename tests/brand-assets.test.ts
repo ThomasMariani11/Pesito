@@ -44,4 +44,29 @@ describe('marca: logo vectorial del chanchito', () => {
   });
 });
 
+const pngInfo = (path: string) => {
+  const buf = readFileSync(new URL(`../${path}`, import.meta.url));
+  expect(buf.subarray(1, 4).toString('ascii')).toBe('PNG');
+  return { width: buf.readUInt32BE(16), height: buf.readUInt32BE(20), colorType: buf[25] };
+};
+
+describe('marca: íconos PNG exportados', () => {
+  it.each([
+    ['public/icon-192.png', 192],
+    ['public/icon-512.png', 512],
+    ['public/apple-touch-icon.png', 180],
+    ['public/icon-maskable-512.png', 512],
+  ])('%s mide %i px', (path, size) => {
+    expect(pngInfo(path)).toMatchObject({ width: size, height: size });
+  });
+
+  it('el exportador es estático y dibuja desde los SVG locales', () => {
+    const html = read('brand/export-icons.html');
+    expect(html).not.toMatch(/https?:\/\//);
+    expect(html).toContain('favicon.svg');
+    expect(html).toContain('pesito-maskable.svg');
+    expect(html).toContain('exportIcons');
+  });
+});
+
 export { exists, read };
