@@ -59,7 +59,7 @@ Rama `feat/sec-01-vinculacion-robusta`: mínimo **054**, rollback fijado en **7d
 
 **No objetivos:** confirmación en la PWA antes de activar, límite global de intentos, avisos por WhatsApp (solo Web Push), bandeja de avisos en la PWA y botón "Desvincular".
 
-**Pendiente:** pasados más de 10 minutos de aplicar la 054, quitar el formato de 6 dígitos del webhook (`link-code.ts`) y de la PWA (`src/whatsappLink.ts`) en un cambio aparte.
+**Seguimiento (rama `fix/sec-01-quitar-seis-digitos`, 18/11/2026):** el webhook (`link-code.ts`) y la PWA (`src/whatsappLink.ts`) ya no aceptan el formato de 6 dígitos. El bot reconoce el código solo con guiones o sin separadores y con caracteres del alfabeto de la 054; un texto con otra forma (p. ej. con espacios o tres palabras de 4 letras) sigue el camino normal y no suma intentos. Publicación: merge (PWA) y deploy del webhook, en cualquier orden (el SQL ya no emite 6 dígitos). Rollback: volver PWA y webhook a 8406a9e / v76, compatibles con la 054.
 
 ## Auditoría de dependencias con excepciones acotadas — 17/11/2026
 
