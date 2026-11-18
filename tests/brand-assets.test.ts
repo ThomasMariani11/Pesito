@@ -1,0 +1,103 @@
+import { existsSync, readFileSync } from 'node:fs';
+import { describe, expect, it } from 'vitest';
+
+const read = (path: string) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
+const exists = (path: string) => existsSync(new URL(`../${path}`, import.meta.url));
+
+const UNSAFE_SVG = /<script|<image|<foreignObject|href="http/i;
+const OPAQUE_FULL_BACKGROUND = /^\s*(?:<\?xml[^>]*>\s*)?<svg[^>]*>\s*(?:<defs>[\s\S]*?<\/defs>\s*)?<rect width="512" height="512"(?![^>]*\brx=)[^>]*\/>/;
+
+describe('marca: logo vectorial del chanchito', () => {
+  const master = () => read('public/favicon.svg');
+  const maskable = () => read('brand/pesito-maskable.svg');
+
+  it('el maestro es un SVG seguro de 512', () => {
+    const svg = master();
+    expect(svg).toContain('viewBox="0 0 512 512"');
+    expect(svg).toContain('id="pesito"');
+    expect(svg).not.toMatch(UNSAFE_SVG);
+  });
+
+  it('el maestro tiene la moneda dorada y no tiene flecha', () => {
+    const svg = master();
+    expect(svg.toLowerCase()).toContain('#ffcc45');
+    expect(svg).not.toContain('<polyline');
+  });
+
+  it('los íconos son opacos en las esquinas', () => {
+    expect(master()).toMatch(OPAQUE_FULL_BACKGROUND);
+    expect(maskable()).toMatch(OPAQUE_FULL_BACKGROUND);
+  });
+
+  it('la variante maskable deja al chanchito en la zona segura', () => {
+    const svg = maskable();
+    expect(svg).toContain('viewBox="0 0 512 512"');
+    expect(svg).toContain('id="pesito"');
+    expect(svg).not.toMatch(UNSAFE_SVG);
+    const box = svg.match(/data-safe-box="([\d.\s]+)"/);
+    expect(box).not.toBeNull();
+    const [x, y, w, h] = box![1].trim().split(/\s+/).map(Number);
+    const corners = [[x, y], [x + w, y], [x, y + h], [x + w, y + h]];
+    for (const [cx, cy] of corners) {
+      expect(Math.hypot(cx - 256, cy - 256)).toBeLessThanOrEqual(204.8);
+    }
+  });
+});
+
+const pngInfo = (path: string) => {
+  const buf = readFileSync(new URL(`../${path}`, import.meta.url));
+  expect(buf.subarray(1, 4).toString('ascii')).toBe('PNG');
+  return { width: buf.readUInt32BE(16), height: buf.readUInt32BE(20), colorType: buf[25] };
+};
+
+describe('marca: íconos PNG exportados', () => {
+  it.each([
+    ['public/icon-192.png', 192],
+    ['public/icon-512.png', 512],
+    ['public/apple-touch-icon.png', 180],
+    ['public/icon-maskable-512.png', 512],
+  ])('%s mide %i px', (path, size) => {
+    expect(pngInfo(path)).toMatchObject({ width: size, height: size });
+  });
+
+  it('el exportador es estático y dibuja desde los SVG locales', () => {
+    const html = read('brand/export-icons.html');
+    expect(html).not.toMatch(/https?:\/\//);
+    expect(html).toContain('favicon.svg');
+    expect(html).toContain('pesito-maskable.svg');
+    expect(html).toContain('exportIcons');
+  });
+});
+
+describe('marca: logo conectado en la app', () => {
+  it('el manifest separa any y maskable', () => {
+    const manifest = JSON.parse(read('public/manifest.webmanifest'));
+    expect(manifest.icons).toEqual([
+      { src: './icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
+      { src: './icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
+      { src: './icon-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+    ]);
+    for (const icon of manifest.icons) expect(exists(`public/${icon.src.slice(2)}`)).toBe(true);
+  });
+
+  it('index.html declara el favicon SVG antes del PNG', () => {
+    const html = read('index.html');
+    const svgLink = html.indexOf('<link rel="icon" type="image/svg+xml" href="./favicon.svg" />');
+    const pngLink = html.indexOf('<link rel="icon" type="image/png" sizes="192x192" href="./icon-192.png" />');
+    expect(svgLink).toBeGreaterThan(-1);
+    expect(pngLink).toBeGreaterThan(svgLink);
+  });
+
+  it('el encabezado del Dashboard usa el logo', () => {
+    const source = read('src/Dashboard.tsx');
+    expect(source).toMatch(/className="brand-mark"[^>]*src=\{`\$\{import\.meta\.env\.BASE_URL\}favicon\.svg`\}/);
+    expect(source).not.toContain('brand-mark">P<');
+  });
+
+  it('las notificaciones push siguen usando un ícono existente', () => {
+    expect(read('public/sw.js')).toContain("new URL('icon-192.png', base)");
+    expect(exists('public/icon-192.png')).toBe(true);
+  });
+});
+
+export { exists, read };
