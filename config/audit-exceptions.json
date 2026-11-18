@@ -1,0 +1,8 @@
+[
+  {
+    "advisory": "GHSA-fc5q-39xc-vjpf",
+    "package": "picomatch",
+    "expires": "2026-12-18",
+    "reason": "ReDoS en picomatch <=4.0.7 sin versión corregida publicada al 17/11/2026. Solo lo usan herramientas de desarrollo (vite, vitest, typescript-eslint) con patrones del propio proyecto; no llega al bundle de la PWA. Excepción temporal aprobada por el propietario el 17/11/2026."
+  }
+]

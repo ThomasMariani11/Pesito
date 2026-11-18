@@ -36,6 +36,12 @@ PWA **800e82101a1d4c5269ae32179e7169ed6bd005c3**, SQL **001–043**, webhook **v
 
 PWA 7dd418e, SQL 001–042, webhook v66 ACTIVE. PR #73 corrigió importes múltiples localmente. [Registro histórico](../planes/VALIDACION_BE_22_IMPORTES_MULTIPLES.md).
 
+## Auditoría de dependencias con excepciones acotadas — 17/11/2026
+
+El job Frontend corre `node scripts/audit-gate.mjs` en lugar de `npm audit --audit-level=high`. Bloquea igual ante cualquier aviso alto o crítico, salvo los listados en `config/audit-exceptions.json` (un aviso GHSA, un paquete, una fecha de vencimiento y el motivo). Un reporte ilegible o una excepción mal formada hacen fallar el job; pasada la fecha (fin del día, hora argentina) el aviso vuelve a bloquear solo.
+
+**Excepción vigente:** GHSA-fc5q-39xc-vjpf en `picomatch` (ReDoS, <=4.0.7), sin versión corregida publicada al 17/11/2026. Solo la usan herramientas de desarrollo (vite, vitest, typescript-eslint) con patrones del propio proyecto; no llega al bundle de la PWA. Aprobada por el propietario el 17/11/2026; **vence el 18/12/2026**. Al salir el parche: actualizar las dependencias y quitar la excepción. No agregar excepciones sin aprobación explícita del propietario.
+
 ## Contrato candidato 053 (SEC-02, códigos de invitación en el servidor) — 17/11/2026
 
 Rama `feat/sec-02-codigos-servidor`: mínimo **053**, rollback fijado en **d350e08412a10aa71a552adc73381654b05b0c3e** (`main` con la PWA publicada de SEC-03; mínimo **052**).
