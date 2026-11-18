@@ -1,6 +1,10 @@
 # Entornos, publicación y rollback compatible (INF-10)
 
-## Última publicación observada — 18/11/2026 (SEC-01, vinculación de WhatsApp robusta)
+## Última publicación observada — 18/11/2026 (seguimiento de SEC-01: sin formato de 6 dígitos)
+
+PWA **c9d87611e06541ea6bf58d183f20c153876c9100** (PR #111), SQL **001–054** (sin cambios), webhook **v77 ACTIVE** (verify_jwt=false). Orden ejecutado con autorización del propietario: merge de la PR #111 → CI de `main` en verde (incluido el ensayo de release) y Pages con `version.json` = c9d8761 → deploy del webhook desde c9d8761 (v77) → smoke 401 en `/`, `worker` y `client-push`. Desde esta versión el webhook y la PWA aceptan solo `XXXX-XXXX-XXXX` (o sin separadores, alfabeto de la 054). Rollback: PWA 8406a9e y webhook v76, compatibles con la 054.
+
+## Registro histórico — 18/11/2026 (SEC-01, vinculación de WhatsApp robusta)
 
 PWA **8406a9eab0c470db573c640384b290d3cc41a6de** (PR #107), SQL **001–054**, webhook **v76 ACTIVE** (verify_jwt=false). Orden ejecutado con autorización del propietario: excepción temporal de auditoría para GHSA-fc5q-39xc-vjpf (PR #108, vence el 18/12/2026) → merge de la PR #107 → CI de `main` en verde y Pages con `version.json` = 8406a9e (la PWA acepta ambos formatos) → deploy del webhook desde 8406a9e (v76) → smoke 401 en `/`, `worker` y `client-push` → `db push --linked --dry-run` (solo 054) → `db push --linked` (00:42 UTC; la sustitución verificada de la rama link no abortó) → verificación de solo lectura por `db query --linked` (historial 054; `request_whatsapp_link_code` con el alfabeto de 32, SECURITY DEFINER, `search_path=pg_catalog, public`, EXECUTE para authenticated y no para anon; una sola `apply_whatsapp_job`, SECURITY DEFINER, mismo `search_path`, sin EXECUTE para authenticated, encola `whatsapp_linked`/`whatsapp_unlinked`; check de `kind` con los tipos nuevos; 0 códigos pendientes; 4 vínculos activos intactos; cola habilitada; un cron `pesito-client-push`). Prueba previa en PGlite y en el ensayo de release del CI. Rollback: conservar 054; **no volver el webhook a v75**; PWA a 7d07b17 rechaza el código largo hasta republicar. **Pendiente:** quitar el formato de 6 dígitos del webhook y la PWA (posible desde las 00:52 UTC del 18/11/2026), junto con los menores diferidos.
 
