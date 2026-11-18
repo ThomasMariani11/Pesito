@@ -31,7 +31,9 @@ jobs:
           cache: npm
       - run: npm ci --no-audit --no-fund
       - name: Auditar dependencias
-        run: npm audit --audit-level=high
+        # Igual que `npm audit --audit-level=high`, con excepciones acotadas y con vencimiento
+        # aprobadas por el propietario en config/audit-exceptions.json.
+        run: node scripts/audit-gate.mjs
       - run: npm run lint
       - run: npm test
       - run: npm run test:sql
