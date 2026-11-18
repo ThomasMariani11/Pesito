@@ -857,7 +857,7 @@ export function Dashboard({ userId, userEmail, userProfile, onOpenSettings, onSi
 
   return <main className="app-shell">
     <aside className="sidebar">
-      <div className="brand"><span className="brand-mark">P</span><span>Pesito</span></div>
+      <div className="brand"><img className="brand-mark" src={`${import.meta.env.BASE_URL}favicon.svg`} alt="" /><span>Pesito</span></div>
       <nav aria-label="Navegación principal">
         <a className={`nav-item ${activeSection === '#resumen' ? 'active' : ''}`} aria-current={activeSection === '#resumen' ? 'page' : undefined} href="#resumen"><span><IconHome /></span>Resumen</a>
         <a className={`nav-item ${activeSection === '#movimientos' ? 'active' : ''}`} aria-current={activeSection === '#movimientos' ? 'page' : undefined} href="#movimientos"><span><IconMovements /></span>Movimientos</a>
