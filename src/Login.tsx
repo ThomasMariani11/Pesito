@@ -3,6 +3,7 @@ import { useUpdateBlocker } from './PwaUpdates';
 import { FormEvent, useEffect, useRef, useState } from 'react';
 import { supabase } from './supabase';
 import { registrationErrorMessage } from './registration';
+import { isStrongPassword, PASSWORD_RULE } from './passwordPolicy';
 
 type AuthMode = 'login' | 'register';
 
@@ -191,7 +192,7 @@ export function Login() {
       return 'Ya existe una cuenta con este correo electrónico. Probá iniciar sesión.';
     }
     if (lower.includes('password should be at least')) {
-      return 'La contraseña debe tener al menos 6 caracteres.';
+      return PASSWORD_RULE;
     }
     return raw;
   }
@@ -253,7 +254,7 @@ export function Login() {
       const validation = !cleanFirstName ? 'Por favor, ingresá tu nombre.'
         : !cleanLastName ? 'Por favor, ingresá tu apellido.'
         : !cleanCode ? 'Ingresá tu código de invitación para activar tu cuenta.'
-        : password.length < 6 ? 'La contraseña debe tener al menos 6 caracteres.'
+        : !isStrongPassword(password) ? PASSWORD_RULE
         : password !== confirmPassword ? 'Las contraseñas no coinciden.' : '';
       if (validation) { setIsError(true); setMessage(validation); return; }
       // Preflight orientativo. La validez se vuelve a comprobar bajo bloqueo en Auth.
@@ -520,7 +521,7 @@ export function Login() {
                   autoComplete="new-password"
                   value={password}
                   onChange={(event) => setPassword(event.target.value)}
-                  placeholder="Mínimo 6 caracteres"
+                  placeholder="8+ con mayúscula, minúscula y número"
                 />
               </label>
 

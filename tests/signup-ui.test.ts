@@ -20,7 +20,7 @@ beforeEach(async () => {
   await input('input.invite-code-input', 'TEST-CODE'); await input('input[autocomplete="given-name"]', ' Nombre '); await input('input[autocomplete="family-name"]', ' Apellido ');
   await input('input[type="email"]', 'ficticia@example.invalid');
   const passwords = node.querySelectorAll<HTMLInputElement>('input[type="password"]');
-  for (const field of passwords) { await act(async () => { Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(field, 'test-password'); field.dispatchEvent(new Event('input', { bubbles: true })); }); }
+  for (const field of passwords) { await act(async () => { Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(field, 'Test-password1'); field.dispatchEvent(new Event('input', { bubbles: true })); }); }
 });
 afterEach(async () => { await act(async () => root.unmount()); node.remove(); vi.unstubAllGlobals(); });
 describe('registro real del cliente', () => {
@@ -99,4 +99,13 @@ describe('registro real del cliente', () => {
     expect(node.textContent).toContain('Verificando código…');
   });
   it.each(['already registered', 'email rate limit exceeded', 'Password too weak', 'INTERNAL_PRIVATE'])('sanea los errores de Auth (%s)', error => { expect(registrationErrorMessage({ message: error }, true)).not.toContain(error); });
+  it('rechaza una contraseña que no cumple la regla sin llamar a Auth ni consumir el código', async () => {
+    for (const field of node.querySelectorAll<HTMLInputElement>('input[type="password"]')) { await act(async () => { Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(field, 'test-password'); field.dispatchEvent(new Event('input', { bubbles: true })); }); }
+    await submit();
+    expect(api.signup).not.toHaveBeenCalled();
+    expect(node.textContent).toContain('Usá al menos 8 caracteres, con mayúsculas, minúsculas y números.');
+  });
+  it('el campo de contraseña anticipa la regla', () => {
+    expect(node.querySelector<HTMLInputElement>('input[autocomplete="new-password"]')!.placeholder).toBe('8+ con mayúscula, minúscula y número');
+  });
 });
