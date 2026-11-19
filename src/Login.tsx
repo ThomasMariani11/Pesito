@@ -3,6 +3,7 @@ import { useUpdateBlocker } from './PwaUpdates';
 import { FormEvent, useEffect, useRef, useState } from 'react';
 import { supabase } from './supabase';
 import { registrationErrorMessage } from './registration';
+import { isStrongPassword, PASSWORD_RULE } from './passwordPolicy';
 
 type AuthMode = 'login' | 'register';
 
@@ -33,7 +34,9 @@ export function Login() {
   const [message, setMessage] = useState('');
   const [isError, setIsError] = useState(false);
   const [sending, setSending] = useState(false);
-  const [useOtp, setUseOtp] = useState(false);
+  // Recuperación de contraseña con un código de un solo uso enviado por correo.
+  const [recovery, setRecovery] = useState<null | 'request' | 'verify'>(null);
+  const [recoveryCode, setRecoveryCode] = useState('');
 
   useUpdateBlocker(sending || Boolean(email || password || (mode === 'register' && (firstName || lastName || confirmPassword || inviteCode))), "Completá o limpiá el formulario de acceso antes de actualizar.");
 
@@ -72,7 +75,11 @@ export function Login() {
   useEffect(() => {
     try {
       const params = new URLSearchParams(window.location.search);
-      const codeFromUrl = params.get('invitacion') || params.get('code') || params.get('invite');
+      // ?code= también lo usa Supabase para completar el ingreso o la confirmación del correo (PKCE):
+      // solo se toma como invitación si tiene forma de código de invitación.
+      const legacyCode = params.get('code');
+      const codeFromUrl = params.get('invitacion') || params.get('invite')
+        || (legacyCode && /^PESO-/i.test(legacyCode.trim()) ? legacyCode : null);
       if (codeFromUrl) {
         const clean = codeFromUrl.trim().toUpperCase();
         inviteCodeRef.current = clean;
@@ -191,7 +198,7 @@ export function Login() {
       return 'Ya existe una cuenta con este correo electrónico. Probá iniciar sesión.';
     }
     if (lower.includes('password should be at least')) {
-      return 'La contraseña debe tener al menos 6 caracteres.';
+      return PASSWORD_RULE;
     }
     return raw;
   }
@@ -215,30 +222,63 @@ export function Login() {
     setSending(false);
   }
 
-  // 4. Login con Magic Link (OTP)
-  async function submitOtp(event: FormEvent<HTMLFormElement>) {
+  // 4. Recuperar la contraseña: código de un solo uso por correo, después contraseña nueva.
+  async function requestRecoveryCode(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setSending(true);
     setMessage('');
     setIsError(false);
-
-    const redirectTo = new URL(import.meta.env.BASE_URL, window.location.origin).toString();
-    const { error } = await supabase.auth.signInWithOtp({
-      email: email.trim(),
-      options: { emailRedirectTo: redirectTo },
-    });
-
+    const { error } = await supabase.auth.resetPasswordForEmail(email.trim());
+    setSending(false);
     if (error) {
       setIsError(true);
       setMessage(getErrorMessage(error));
-    } else {
-      setIsError(false);
-      setMessage('Revisá tu correo y abrí el enlace para entrar.');
+      return;
     }
-    setSending(false);
+    setRecovery('verify');
+    setRecoveryCode('');
+    setPassword('');
+    setConfirmPassword('');
+    setMessage('Si el correo está registrado, te enviamos un código. Escribilo acá junto con tu contraseña nueva.');
   }
 
-  // 5. Registro con código de invitación (FASE 3)
+  async function resetPasswordWithCode(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const token = recoveryCode.replace(/\s+/g, '');
+    const validation = !/^\d{6,10}$/.test(token) ? 'Escribí el código que te enviamos por correo.'
+      : !isStrongPassword(password) ? PASSWORD_RULE
+      : password !== confirmPassword ? 'Las contraseñas no coinciden.' : '';
+    if (validation) { setIsError(true); setMessage(validation); return; }
+    setSending(true);
+    setMessage('');
+    setIsError(false);
+    try {
+      const verified = await supabase.auth.verifyOtp({ email: email.trim(), token, type: 'recovery' });
+      if (verified.error) {
+        setIsError(true);
+        setMessage('El código no es válido o ya venció. Pedí uno nuevo.');
+        return;
+      }
+      const updated = await supabase.auth.updateUser({ password });
+      if (updated.error) {
+        setIsError(true);
+        setMessage(updated.error.message.toLowerCase().includes('password') ? PASSWORD_RULE : getErrorMessage(updated.error));
+        return;
+      }
+      setIsError(false);
+      setMessage('Listo, tu contraseña quedó cambiada.');
+    } finally {
+      setSending(false);
+    }
+  }
+
+  function toggleRecovery(next: null | 'request') {
+    setRecovery(next);
+    setRecoveryCode('');
+    setMessage('');
+    setIsError(false);
+  }
+
   async function submitRegister(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (registeringRef.current) return;
@@ -253,7 +293,7 @@ export function Login() {
       const validation = !cleanFirstName ? 'Por favor, ingresá tu nombre.'
         : !cleanLastName ? 'Por favor, ingresá tu apellido.'
         : !cleanCode ? 'Ingresá tu código de invitación para activar tu cuenta.'
-        : password.length < 6 ? 'La contraseña debe tener al menos 6 caracteres.'
+        : !isStrongPassword(password) ? PASSWORD_RULE
         : password !== confirmPassword ? 'Las contraseñas no coinciden.' : '';
       if (validation) { setIsError(true); setMessage(validation); return; }
       // Preflight orientativo. La validez se vuelve a comprobar bajo bloqueo en Auth.
@@ -306,8 +346,10 @@ export function Login() {
         <p>
           {mode === 'register'
             ? 'Activá tu cuenta con tu código de invitación exclusivo.'
-            : useOtp
-            ? 'Te enviaremos un enlace a tu correo para ingresar directamente.'
+            : recovery === 'request'
+            ? 'Escribí tu correo y te enviamos un código para elegir una contraseña nueva.'
+            : recovery === 'verify'
+            ? 'Escribí el código que te enviamos y tu contraseña nueva.'
             : 'Ingresá con tu usuario y contraseña para acceder a tus finanzas.'}
         </p>
 
@@ -356,7 +398,7 @@ export function Login() {
         {/* Modo 1: INICIAR SESIÓN */}
         {mode === 'login' && (
           <>
-            {!useOtp ? (
+            {recovery === null && (
               <form onSubmit={submitPassword}>
                 <label>
                   Correo o usuario
@@ -384,8 +426,9 @@ export function Login() {
                   {sending ? 'Iniciando sesión…' : 'Iniciar sesión'}
                 </button>
               </form>
-            ) : (
-              <form onSubmit={submitOtp}>
+            )}
+            {recovery === 'request' && (
+              <form onSubmit={requestRecoveryCode}>
                 <label>
                   Correo electrónico
                   <input
@@ -398,7 +441,49 @@ export function Login() {
                   />
                 </label>
                 <button type="submit" disabled={sending}>
-                  {sending ? 'Enviando enlace…' : 'Enviar enlace de acceso'}
+                  {sending ? 'Enviando código…' : 'Enviar código'}
+                </button>
+              </form>
+            )}
+            {recovery === 'verify' && (
+              <form onSubmit={resetPasswordWithCode}>
+                <label>
+                  Código que te enviamos
+                  <input
+                    required
+                    type="text"
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    maxLength={14}
+                    value={recoveryCode}
+                    onChange={(event) => setRecoveryCode(event.target.value)}
+                    placeholder="123456"
+                  />
+                </label>
+                <label>
+                  Contraseña nueva
+                  <input
+                    required
+                    type="password"
+                    autoComplete="new-password"
+                    value={password}
+                    onChange={(event) => setPassword(event.target.value)}
+                    placeholder="8+ con mayúscula, minúscula y número"
+                  />
+                </label>
+                <label>
+                  Confirmar contraseña nueva
+                  <input
+                    required
+                    type="password"
+                    autoComplete="new-password"
+                    value={confirmPassword}
+                    onChange={(event) => setConfirmPassword(event.target.value)}
+                    placeholder="Repetí la contraseña"
+                  />
+                </label>
+                <button type="submit" disabled={sending}>
+                  {sending ? 'Guardando…' : 'Guardar contraseña nueva'}
                 </button>
               </form>
             )}
@@ -407,25 +492,9 @@ export function Login() {
               <button
                 type="button"
                 className="button-link auth-switch-link"
-                onClick={() => {
-                  setUseOtp(!useOtp);
-                  setMessage('');
-                  setIsError(false);
-                }}
+                onClick={() => toggleRecovery(recovery ? null : 'request')}
               >
-                {useOtp ? '← Volver a ingresar con contraseña' : '¿Preferís recibir un enlace por correo?'}
-              </button>
-              <button
-                type="button"
-                className="button-link auth-switch-link"
-                style={{ marginTop: '8px', color: 'var(--mint-dark)', fontWeight: 700 }}
-                onClick={() => {
-                  setMode('register');
-                  setMessage('');
-                  setIsError(false);
-                }}
-              >
-                ¿Tenés un código de invitación? Creá tu cuenta acá →
+                {recovery ? '← Volver a iniciar sesión' : '¿Olvidaste tu contraseña?'}
               </button>
             </div>
           </>
@@ -520,7 +589,7 @@ export function Login() {
                   autoComplete="new-password"
                   value={password}
                   onChange={(event) => setPassword(event.target.value)}
-                  placeholder="Mínimo 6 caracteres"
+                  placeholder="8+ con mayúscula, minúscula y número"
                 />
               </label>
 
