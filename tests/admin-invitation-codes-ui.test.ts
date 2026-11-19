@@ -150,6 +150,18 @@ describe('SEC-02: invitaciones generadas por el servidor en el Panel Admin', () 
     await act(async () => { copyMsg.click(); });
     expect(writeText).toHaveBeenCalledWith(expect.stringMatching(/El enlace vence el 24 de nov\.? de 2026\./));
   });
+
+  it('el mensaje avisa que hay que confirmar el correo, que puede caer en no deseado, y la regla de contraseña', async () => {
+    await openInvitations();
+    await submitNewCode();
+    await vi.waitFor(() => expect(container.querySelector('.code-token')).not.toBeNull());
+    const copyMsg = Array.from(container.querySelectorAll('.generated-code-box button')).find((b) => b.textContent === 'Copiar mensaje') as HTMLButtonElement;
+    await act(async () => { copyMsg.click(); });
+    const text = writeText.mock.calls.at(-1)![0];
+    expect(text).toContain('Te va a llegar un correo de *Pesito* para confirmar tu cuenta');
+    expect(text).toContain('revisá *Correo no deseado* (Spam)');
+    expect(text).toContain('8 caracteres o más, con mayúscula, minúscula y número');
+  });
   it('la duración vitalicia se lee como membresía, no como vencimiento del código', async () => {
     state.codes = [{ id: 'c1', code: 'PESO-VITA-LICI-AAAA', duration_days: null, is_used: false, used_by: null, used_at: null, created_by: 'admin-1',
       notes: null, created_at: '2026-11-10T00:00:00Z', expires_at: new Date(Date.now() + 3 * 86_400_000).toISOString() }];
