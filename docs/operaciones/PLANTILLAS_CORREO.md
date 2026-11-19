@@ -6,13 +6,21 @@ Fuente versionada de los correos que manda Supabase Auth. Se cargan **a mano** e
 
 **Criterios:**
 - En español, con la marca Pesito, y explicando por qué llega el correo.
-- Un solo botón con el enlace. Sin imágenes externas ni adjuntos (empeoran la entrega).
+- Sin imágenes externas ni adjuntos (empeoran la entrega).
 - Avisar qué hacer si no fue la persona, y que Pesito nunca pide contraseñas ni datos bancarios por correo.
 - Sin datos financieros ni información de la cuenta más allá del correo.
 
 **Remitente** (Authentication → Emails → SMTP Settings): nombre `Pesito`. Mientras se use Gmail, el correo sale desde la dirección del propietario; con un dominio propio y un servicio transaccional (Fase 3) mejora la entrega.
 
-Variables de Supabase usadas: `{{ .ConfirmationURL }}` (enlace de un solo uso) y `{{ .Email }}`.
+**Correos que usa la app** (desde el 19/11/2026 ya no existe el ingreso con enlace por correo):
+
+| Plantilla en Supabase | Para qué | Variable |
+|---|---|---|
+| Confirm signup | Confirmar el correo al crear la cuenta | `{{ .ConfirmationURL }}` (enlace) |
+| Reset Password | Recuperar la contraseña: la app pide **el código** y la contraseña nueva | `{{ .Token }}` (código de un solo uso) |
+| Change Email Address | Confirmar un cambio de correo | `{{ .ConfirmationURL }}` (enlace) |
+
+La plantilla **Reset Password** muestra el código y **no** un enlace: así funciona en cualquier dispositivo, aunque el correo se abra en otro navegador.
 
 ---
 
@@ -36,21 +44,19 @@ Variables de Supabase usadas: `{{ .ConfirmationURL }}` (enlace de un solo uso) y
 </div>
 ```
 
-## 2. Magic Link (entrar sin contraseña)
+## 2. Reset Password (recuperar la contraseña con un código)
 
-**Asunto:** `Tu enlace para entrar a Pesito`
+**Asunto:** `Tu código para cambiar la contraseña de Pesito`
 
 ```html
 <div style="margin:0;padding:24px 12px;background:#f5f7f6;font-family:Arial,Helvetica,sans-serif;color:#1f2933;">
   <div style="max-width:480px;margin:0 auto;background:#ffffff;border-radius:12px;padding:28px 24px;">
     <p style="margin:0 0 4px;font-size:13px;font-weight:bold;letter-spacing:1px;color:#15803d;">PESITO</p>
-    <h1 style="margin:0 0 16px;font-size:22px;color:#1f2933;">Entrá a tu cuenta</h1>
-    <p style="margin:0 0 12px;font-size:15px;line-height:1.5;">Pediste entrar a Pesito sin contraseña con este correo ({{ .Email }}).</p>
-    <p style="margin:0 0 20px;font-size:15px;line-height:1.5;">Tocá el botón para ingresar. El enlace sirve una sola vez y vence en poco tiempo.</p>
-    <p style="margin:0 0 24px;text-align:center;">
-      <a href="{{ .ConfirmationURL }}" style="display:inline-block;background:#15803d;color:#ffffff;text-decoration:none;font-weight:bold;font-size:15px;padding:12px 24px;border-radius:8px;">Entrar a Pesito</a>
-    </p>
-    <p style="margin:0 0 12px;font-size:13px;line-height:1.5;color:#52606d;">Si no lo pediste vos, ignorá este correo: tu cuenta sigue protegida.</p>
+    <h1 style="margin:0 0 16px;font-size:22px;color:#1f2933;">Cambiá tu contraseña</h1>
+    <p style="margin:0 0 12px;font-size:15px;line-height:1.5;">Pediste recuperar la contraseña de tu cuenta de Pesito ({{ .Email }}).</p>
+    <p style="margin:0 0 12px;font-size:15px;line-height:1.5;">Escribí este código en la app, junto con tu contraseña nueva:</p>
+    <p style="margin:0 0 20px;text-align:center;font-size:32px;font-weight:bold;letter-spacing:6px;color:#15803d;font-family:'Courier New',Courier,monospace;">{{ .Token }}</p>
+    <p style="margin:0 0 12px;font-size:13px;line-height:1.5;color:#52606d;">El código sirve una sola vez y vence en poco tiempo. Si no lo pediste vos, ignorá este correo: tu contraseña sigue igual.</p>
     <p style="margin:0;font-size:13px;line-height:1.5;color:#52606d;">Pesito nunca te va a pedir tu contraseña ni datos bancarios por correo.</p>
   </div>
 </div>
