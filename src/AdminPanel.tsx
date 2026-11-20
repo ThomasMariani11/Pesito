@@ -401,7 +401,8 @@ Tu cuenta ya está habilitada. Seguí estos 3 pasos rápidos para empezar:
 
 1️⃣ *Creá tu cuenta:* Entrá a este enlace exclusivo:
 ${inviteUrl}
-(Ingresá tu email y la contraseña que prefieras).
+(Ingresá tu email y una contraseña de 8 caracteres o más, con mayúscula, minúscula y número).
+📩 Te va a llegar un correo de *Pesito* para confirmar tu cuenta: tocá *Confirmar mi cuenta* y después iniciá sesión. Si no lo ves, revisá *Correo no deseado* (Spam) y marcalo como seguro.
 ${expiresAt ? `⏳ El enlace vence el ${formatDate(expiresAt)}.
 ` : ''}
 2️⃣ *Instalá la app en tu celu (Opcional pero recomendado):*
